@@ -4,8 +4,6 @@
 
 # novel-storyboard
 
-**v1.3.1: plan action continuity before writing prompts.** Use the existing `cut.note` for each cut's starting state, action, ending state and handoff. Frame and video prompts share this plan. Markdown / HTML reports display these notes and flag missing plans for review. Structural validation, semantic continuity review and visual review are separate; passing gates or having every image does not prove continuity. Existing JSON remains compatible; new runs follow `references/continuity.md`.
-
 Storyboarding for AI short drama: turns novel-script's beat flow into a worklist you can hand straight to a video model. This is the first layer in the pipeline that talks directly to that model, and the premise is baked in: **shots are generated, so one more cut costs almost nothing** — and the short-drama attention span runs on ~3-second cuts. Hence a three-level structure:
 
 ```
@@ -19,13 +17,13 @@ segment = one video-generation call, ≤ 15s, never crosses scenes
 - **A dialogue's shot–reverse-shot lives inside one segment, one generation** — wide, close on A, close on B are separate 2–5s cuts, each composition controlled by its own storyboard frame instead of gambling on prose
 - **The alignment instruction is derived, not written** — the multi-picture line (`Picture 2 aligns with the 3.00-second mark…`) and every `[Shot k] At 00:0X.XXX` cut time are computed from cut durations, and validate audits them **character for character**: change a duration without updating the prompt and it blocks
 - **Prompts follow the official spec: English by default, one shot per line** — each shot on its own line with its cut time; dialogue, lyrics and on-screen text keep their original language per the official rules (`<d>[Chinese] …</d>` verbatim). `promptLang: 'zh'` switches the whole prompt to Chinese. The writing spec is internalized as `references/h3-prompt.md` — **this skill is self-contained and depends on no external skill**
-- **Frames are asset composition, not invention** — generation feeds the scene / character / prop sheets as references; with codex installed the frames are actually generated (optional)
+- **Frames are asset composition, not invention** — every frame carries a reference manifest: the scene / character / prop sheets it must be built from. **This skill does not generate the images**; the prompt and that manifest are the deliverable
 
 Outputs `storyboard.json`, a Markdown shot list, and a self-contained `storyboard-report.html`:
 
 ![storyboard-report.html](assets/report.webp)
 
-## Seventeen quality gates, all code
+## Eighteen quality gates, all code
 
 Same stance as the other four skills in this repo: **a checklist the model grades itself on is worthless.**
 
@@ -38,14 +36,15 @@ Same stance as the other four skills in this repo: **a checklist the model grade
 | Episode total | Σ segments within ±15% of the script's `targetSeconds` |
 | On-screen cap | ≤ 3 characters per cut, more requires a breakdown note |
 | Segment ID discipline | `E01-01` format, sequential — the segment ID is the asset filename |
-| Size phrase | the English shot-size phrase must appear in the cut's frame prompt |
+| Size word | the Chinese shot-size word (e.g. 特写) must appear in the cut's frame prompt |
 | Camera vocabulary | camera moves use H3's official terms (`Push In` / `Pan Left` / `Tracking Shot`…) and must appear inside **that cut's own [Shot k] passage** |
 | **H3 structure** | the alignment line is **derived from the cut structure and audited verbatim**; three fields in order; every `[Shot k]` cut time equals the running sum of prior cut durations |
 | **H3 dialogue verbatim** | every claimed line appears verbatim inside a `<d>` block — one changed punctuation mark fails |
 | **Prompt language consistency** | prose audited both ways against `promptLang`: Chinese drama written in English fails, English mode mixing Chinese fails |
-| **Style phrase** | the `style` preset's English phrase (realistic / ghibli, name-aligned with the character and art skills) must appear in every frame prompt — one drama, one look |
-| Frame-prompt hygiene | English-only, non-empty |
-| No character names | frame prompts always; the H3 prompt only in English mode (Chinese prompts allow names — identity is anchored by the frames). Checked with `--outline` / `--cast`; skipping is **announced** |
+| Frame-prompt hygiene | Chinese, non-empty (it names characters on purpose — a name points at the attached design sheet) |
+| No names in video prompts | the H3 body (in either language) and the Seedance shot text carry no character names or aliases — required by both official prompt guides. Checked with `--outline` / `--cast`; skipping is **announced** |
+| **Composition fields** | `blocking` per segment; lens / camera position / composition / eyeline / focus / stability per cut, stability from the enum |
+| **Seedance shot text** | every cut's `shot` is Chinese and non-empty, with no timings, shot numbers, image references, H3 markers or `{}` `<>` `（）` — the program adds those from the real structure |
 | Reference integrity | scene index / characters / props all audited against the script scene |
 | **Shot recipe** (optional mount) | only checked with `--shots <cards dir>`: a cut's `recipe` id exists in the library, every must-phrase of that card appears in the cut's frame prompt, and a multi-cut recipe runs long enough. Without `--shots` the skip is **announced**; so is "no cut references a recipe" |
 
@@ -95,7 +94,7 @@ novel-script     → script.json     (the drama: scenes, beats, lines)
 novel-storyboard → storyboard.json (how to shoot: segments, cuts, frames, H3 prompts)
 ```
 
-`seed <script.json> --eps 1-3` deterministically expands each scene's beat list (numbers, per-beat seconds, speakers) as the cutting worksheet. `validate --script` is mandatory; `--outline` / `--cast` enable the name ban, `--art` gets scene names and sheet thumbnails into the report. Frame generation runs through codex `$imagegen` with the upstream sheets as `-i` references; the H3 prompt plus the frame set goes straight to MiniMax H3.
+`seed <script.json> --eps 1-3` deterministically expands each scene's beat list (numbers, per-beat seconds, speakers) as the cutting worksheet. `validate --script` is mandatory; `--outline` / `--cast` enable the name ban, `--art` gets scene names and sheet thumbnails into the report. Each frame ships a prompt plus the reference manifest naming the upstream sheets it must be built from; generation happens downstream. The H3 prompt plus the frame set goes straight to MiniMax H3.
 
 ## CLI
 
@@ -106,14 +105,10 @@ node scripts/novel-storyboard.mjs checkup sb.json --script script.json
 node scripts/novel-storyboard.mjs validate sb.json --script script.json --shots /path/to/cards   # optional: the 17th gate
 node scripts/novel-storyboard.mjs render sb.json --html --script script.json --outline outline.json --art art.json > storyboard-report.html
 node scripts/novel-storyboard.mjs render sb.json --html --lang en --script script.json --outline outline.json --art art.json > storyboard-report.html   # English report UI
-node scripts/novel-storyboard.mjs review-template sb.json --script script.json --model h3 > review.json
-node scripts/novel-storyboard.mjs export sb.json --script script.json --review review.json
-node scripts/novel-storyboard.mjs export sb.json --script script.json --draft
+node scripts/novel-storyboard.mjs export sb.json --script script.json   # per-segment folders: f1..fN.png + prompt.md
 ```
 
 ## Limits
-
-**v1.4.0 production gate:** the review template starts with every cut pending. Inspect the actual frames and handoffs before recording a pass with evidence. Default export verifies the input fingerprint, complete review coverage, segment order, exact submitted durations and the H3 target; it does not judge image semantics. Use matching upstream flags and `--out` for the template and export, with frames already in that directory. Changed inputs invalidate the review. Other models require a separate adapter; unreviewed text-only delivery uses `--draft`, clearly marked as not production-ready. See `references/production.md`.
 
 - No writing or rewriting dialogue, no design sheets, no video generation or editing
 - Lip-sync is out of scope for now — that belongs to the generation pipeline
@@ -125,10 +120,9 @@ node scripts/novel-storyboard.mjs export sb.json --script script.json --draft
 
 ```bash
 node scripts/selftest.mjs
-node scripts/production-selftest.mjs
 ```
 
-271 assertions — beat expansion, H3 skeleton derivation, stats and batching, gate-defeating cases, recipe-card parsing and mounting, seed, rendering (both report UI languages, continuity notes and review-scope notices), export. No model calls, runs in about a second.
+323 assertions — beat expansion, H3 skeleton derivation, Seedance assembly, stats and batching, gate-defeating cases, recipe-card parsing and mounting, seed, rendering (both report UI languages), H3 and Seedance export. No model calls, runs in about a second.
 
 The bundled example (`examples/渡口-storyboard.json`) is a complete episode-1 storyboard — 10 segments, 34 cuts claiming all 35 script beats at ~3.5s per cut, 119s against a 120s target, 2 generation batches, every segment carrying a fully audited H3 prompt.
 

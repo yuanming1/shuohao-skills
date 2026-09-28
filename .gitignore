@@ -30,3 +30,6 @@ node_modules/
 
 # 仓库根的输出目录（skill 运行时生成的素材与评审产物）
 /output/
+
+# 各 skill 的本机配置（character-refs 的出图模型选择等），每台机器不同
+skills/*/config.local.json
