@@ -27,3 +27,6 @@ node_modules/
 
 # 门失败累积日志（用户在自己的输出目录里生成的）
 .gates.jsonl
+
+# 仓库根的输出目录（skill 运行时生成的素材与评审产物）
+/output/
