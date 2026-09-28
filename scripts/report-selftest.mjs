@@ -115,10 +115,11 @@ const DOC = `<!doctype html><html lang="zh"><head><meta charset="utf-8">
 /* ---------------- scopeHtml ---------------- */
 
 {
-  const h = scopeHtml('<section id="sec-gates"><a href="#sec-gates">去</a><b data-pane="tp-1"></b></section>', 'outline--');
+  const h = scopeHtml('<section id="sec-gates"><a href="#sec-gates">去</a><b data-pane="tp-1"></b><button data-target="p-linyi"></button></section>', 'outline--');
   ok(h.includes('id="outline--sec-gates"'), 'id 加前缀');
   ok(h.includes('href="#outline--sec-gates"'), '页内锚点跟着改');
   ok(h.includes('data-pane="outline--tp-1"'), 'data-pane 跟着改——大纲的图表切换靠它跟 id 比对');
+  ok(h.includes('data-target="outline--p-linyi"'), 'data-target 跟着改——角色列表/关系图靠它跟详情 id 比对');
   // 跨报告重复的 id 实测有 9 个（#ep-1…#ep-6、#sec-gates、#sec-scenes、#sec-rhythm），
   // 不加前缀页内锚点会跳到别的面板去
   eq(scopeHtml('<i id="ep-1"></i>', 'script--'), '<i id="script--ep-1"></i>', '不同面板的同名 id 分得开');

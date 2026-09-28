@@ -215,7 +215,8 @@ export function scopeCss(css, scope) {
  * `#sec-scenes`、`#sec-rhythm`）。不改的话页内锚点会跳到别的面板去。
  *
  * 一并改的引用点：`href="#…"`、`data-pane="…"`（大纲的图表/表格切换靠它跟
- * `p.id` 比对）、`aria-controls`、`for`。**脚本里的 id 字符串不用改**——
+ * `p.id` 比对）、`data-target="…"`（角色列表/关系图靠它跟详情卡 id 比对）、
+ * `aria-controls`、`for`。**脚本里的 id 字符串不用改**——
  * 作用域代理会在 `getElementById` 里自动补前缀。
  */
 export function scopeHtml(body, prefix) {
@@ -223,6 +224,7 @@ export function scopeHtml(body, prefix) {
     .replace(/\bid="([^"]+)"/g, (_, id) => `id="${prefix}${id}"`)
     .replace(/\bhref="#([^"]+)"/g, (_, id) => `href="#${prefix}${id}"`)
     .replace(/\bdata-pane="([^"]+)"/g, (_, id) => `data-pane="${prefix}${id}"`)
+    .replace(/\bdata-target="([^"]+)"/g, (_, id) => `data-target="${prefix}${id}"`)
     .replace(/\baria-controls="([^"]+)"/g, (_, id) => `aria-controls="${prefix}${id}"`)
     .replace(/\bfor="([^"]+)"/g, (_, id) => `for="${prefix}${id}"`);
 }
