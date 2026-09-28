@@ -1067,7 +1067,10 @@ const I18N = {
     hideSegs: '▴ 收起',
     copy: '复制', copied: '已复制', copyFailed: '复制失败',
     dialogueCols: ['段 · 切', '说话人', '台词', '台词秒数'],
-    cutCols: ['切', '起点', '秒', '景别', '运镜', '配方', '画面', '人物'],
+    cutCols: ['切', '起点', '秒', '景别', '运镜', '配方', '画面', '人物', '动作承接 / 备注'],
+    continuityLabel: '动作承接 / 备注',
+    continuityMissing: '未提供动作承接安排，需人工复核。',
+    continuityScope: '结构门不自动验证动作语义；承接备注是供人工对照剧本复核的计划，标签齐全不等于语义通过。',
     batchCols: ['场景', '光照', '段', '需要的角色', '道具'],
     atSec: (t) => `${t.toFixed(2)}s 起`,
     batchLabel: (num) => `批次 ${num}`,
@@ -1132,7 +1135,10 @@ const I18N = {
     hideSegs: '▴ Collapse',
     copy: 'Copy', copied: 'Copied', copyFailed: 'Copy failed',
     dialogueCols: ['Segment · cut', 'Speaker', 'Line', 'Seconds'],
-    cutCols: ['Cut', 'Start', 'Sec', 'Size', 'Camera', 'Recipe', 'Picture', 'Characters'],
+    cutCols: ['Cut', 'Start', 'Sec', 'Size', 'Camera', 'Recipe', 'Picture', 'Characters', 'Continuity / notes'],
+    continuityLabel: 'Continuity / notes',
+    continuityMissing: 'No continuity plan provided; manual review required.',
+    continuityScope: 'Structural gates do not verify action semantics. Continuity notes are plans for manual cross-checking against the script; complete labels do not imply passing semantics.',
     batchCols: ['Scene', 'Lighting', 'Segments', 'Characters needed', 'Props'],
     atSec: (t) => `from ${t.toFixed(2)}s`,
     batchLabel: (num) => `Batch ${num}`,
@@ -1217,7 +1223,7 @@ export function renderMarkdown(board, ctx = {}) {
   const expanded = expandScript(ctx.script);
   const stats = computeStats(board, ctx.script);
   const eps = board.episodes;
-  const out = [`# ${t.docTitle(board.source, eps[0]?.ep, eps[eps.length - 1]?.ep)}`, ''];
+  const out = [`# ${t.docTitle(board.source, eps[0]?.ep, eps[eps.length - 1]?.ep)}`, '', `> ${t.continuityScope}`, ''];
 
   for (const [i, ep] of eps.entries()) {
     const st = stats.episodes[i];
@@ -1240,6 +1246,7 @@ export function renderMarkdown(board, ctx = {}) {
           t.sizeName(cut.size), t.cameraLabel(cut.camera),
           rc ? `${rc.name}${rc.drift ? ` ≠（${rc.drift}）` : ''}` : t.recipeNone,
           summary, (cut.characters ?? []).map(n.char).join(t.listSep),
+          String(cut.note ?? '').trim() || t.continuityMissing,
         ]));
       });
       const sd = seedancePrompt(seg, { scene, names: n, image: ctx.image ?? null, constraints: ctx.constraints ?? [] });
@@ -1371,6 +1378,7 @@ export function renderHtml(board, ctx = {}) {
   </div>
   ${t.compLine(cut) ? `<p class="scomp">${esc(t.compLine(cut))}</p>` : ''}
   ${summary}
+  <p class="cut-note"><b>${esc(t.continuityLabel)}：</b>${esc(String(cut.note ?? '').trim() || t.continuityMissing)}</p>
 </li>`;
             })
             .join('\n');
@@ -1585,6 +1593,9 @@ section.top-sec{margin-top:34px}
 a.chip:hover{border-color:var(--seal);color:var(--seal)}
 .prompts{display:flex;gap:6px}
 .seg-note{margin:0;font-size:11px;color:var(--ink-3)}
+.cut-note{white-space:pre-line;overflow-wrap:anywhere;margin:6px 0 0;font-size:11px;color:var(--ink-3)}
+.cut-note b{font-weight:500;color:var(--ink-2)}
+.scope-note{margin:12px 0;color:var(--ink-2);font-size:12px}
 .seg-block{margin:0;font-size:11.5px;line-height:1.7;color:var(--ink-2)}
 .seg-block b{font:500 10.5px/1 var(--sans);letter-spacing:.08em;color:var(--seal);margin-right:8px}
 .cut p.scomp{font:400 10.5px/1.6 var(--sans);color:var(--ink-3)}
@@ -1671,6 +1682,7 @@ td.serif{font-family:var(--serif)}
   <div class="kpi"><div class="l">${esc(t.kpi.batches)}</div><div class="v">${stats.batches.length}</div><div class="d">${esc(t.kpi.batchesSub)}</div></div>
   <div class="kpi"><div class="l">${esc(t.kpi.lines)}</div><div class="v">${stats.totals.withLines} <small>${esc(t.unitSeg)}</small></div><div class="d">${esc(t.kpi.linesSub)}</div></div>
 </div>
+<p class="scope-note">${esc(t.continuityScope)}</p>
 ${failed.length ? `<div class="galert"><b>✗ ${esc(t.gatesFail(failed.length))}</b>${failed.map((g) => `<span>${esc(gateText(g, t.langCode).label)}${g.detail ? ` — ${esc(gateText(g, t.langCode).detail)}` : ''}</span>`).join('')}</div>` : ''}
 
 <section class="top-sec" id="sec-rhythm">

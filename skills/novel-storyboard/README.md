@@ -4,6 +4,8 @@
 
 # novel-storyboard
 
+**v2.0.1（fork）：切完镜先规划动作承接。** 每切用已有 `cut.note` 写起始、动作、结束、接镜四段短句，`frame` / `shot` / `h3Prompt` 共用这份安排；Markdown / HTML 报告展示承接备注、缺失标注待人工复核，并在页首声明结构门不验证动作语义。不新增 JSON 字段、不加门，写法见 `references/continuity.md`。
+
 给 AI 短剧出**分镜**：把 novel-script 的节拍流切成可以直接下单给视频模型的生成任务单。这是管线里第一个直接面对视频模型的层，前提刻在骨子里：**镜头是生成出来的，多切一刀的成本几乎为零**，短剧观众的注意力节奏是 3 秒左右一切。所以结构是三层：
 
 ```
@@ -130,11 +132,12 @@ node scripts/novel-storyboard.mjs export sb.json --script script.json   # H3 投
 SKILL.md                 给 agent 读的工作流
 scripts/
   novel-storyboard.mjs   seed / validate / checkup / render / export / slug
-  selftest.mjs           323 项断言，不调模型
+  selftest.mjs           338 项断言，不调模型
 references/
   schema.md              storyboard.json 结构 + 时长约束链
   h3-prompt.md           H3 提示词写法规范（官方方法论内化版）
   storyboard-pass.md     切镜：分段规则、导演运镜手感、常见病
+  continuity.md          动作承接：先规划起始/动作/结束/接镜，再写提示词
   frame.md               分镜图的提示词与挂图合同
   report-style.md        报告的设计约定
 examples/
@@ -149,6 +152,6 @@ assets/
 node scripts/selftest.mjs
 ```
 
-323 项断言，覆盖节拍展开 / H3 骨架推导 / Seedance 拼装 / 统计与批次 / 质量门逐项击穿 / 配方卡库解析与挂载 / seed / 渲染（含中英界面）/ H3 与 Seedance 导出。不调模型、不花额度、1 秒跑完。改完脚本先跑这个。
+338 项断言，覆盖节拍展开 / H3 骨架推导 / Seedance 拼装 / 统计与批次 / 质量门逐项击穿 / 配方卡库解析与挂载 / seed / 渲染（含中英界面与承接备注）/ H3 与 Seedance 导出。不调模型、不花额度、1 秒跑完。改完脚本先跑这个。
 
 **只在 macOS + Node 24 上实测过。** 代码没有平台相关调用，Linux 和更低版本 Node 理论上没问题，但**没验过**。

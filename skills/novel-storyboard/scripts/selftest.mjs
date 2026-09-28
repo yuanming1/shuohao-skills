@@ -764,6 +764,34 @@ eq((html.match(/<pre class="pp">@\[图片1\] = /g) ?? []).length, 10, '每段都
 ok(html.includes("panel.querySelector('.pp-h .copy').dataset.copy"), '切页签时复制键换成当前那一份');
 ok(html.includes(`<p class="seg-block"><b>走位</b>${FIXTURE.episodes[0].segments[0].blocking}</p>`), '段卡显示走位');
 ok(html.includes('<p class="scomp">35mm 广角，中景深 · 年轻女子 + 背后平视跟随 · 中心构图 · 视线 前方雾中 · 焦点 锁定年轻女子背影与怀中皮箱 · 微晃</p>'), '切行显示构图量化字段');
+
+/* ---------------- 动作承接（cut.note）---------------- */
+{
+  const planned = clone(FIXTURE);
+  const note = '起始：仍在搀扶。\n动作：转头说话。结束：手机仍在右手。接镜：保持站位 <script>alert(1)</script>';
+  planned.episodes[0].segments[0].cuts[0].note = note;
+  const plannedMd = renderMarkdown(planned, CTX);
+  const plannedHtml = renderHtml(planned, CTX);
+  ok(plannedMd.includes('动作承接 / 备注'), 'md 表头有承接备注列');
+  ok(plannedMd.includes('结束：手机仍在右手'), 'md 保留逐切承接内容');
+  ok(plannedHtml.includes('class="cut-note"'), 'html 显示逐切承接备注');
+  ok(plannedHtml.includes('仍在搀扶。'), 'html 保留承接状态');
+  ok(plannedHtml.includes('&lt;script&gt;alert(1)&lt;/script&gt;'), '承接备注按文本转义');
+  ok(!plannedHtml.includes('<script>alert(1)</script>'), '承接备注不能执行 HTML');
+  ok(md.includes('未提供动作承接安排'), '旧数据缺少备注时 md 明确提示');
+  ok(html.includes('未提供动作承接安排'), '旧数据缺少备注时 html 明确提示');
+  ok(plannedMd.includes('结构门不自动验证动作语义'), 'md 声明结构门不管语义');
+  ok(plannedHtml.includes('结构门不自动验证动作语义'), 'html 声明结构门不管语义');
+  eq(validateStoryboard(planned, CTX).length, 0, '承接备注不破坏结构校验');
+  const enHtml = renderHtml(planned, { ...CTX, lang: 'en' });
+  const enMd = renderMarkdown(planned, { ...CTX, lang: 'en' });
+  ok(enHtml.includes('Continuity / notes'), '英文 html 承接标签');
+  ok(enMd.includes('Continuity / notes'), '英文 md 承接标签');
+  ok(enHtml.includes('No continuity plan provided; manual review required.'), '英文 html 缺失提示');
+  const blank = clone(FIXTURE);
+  blank.episodes[0].segments[0].cuts[0].note = '   ';
+  ok(renderMarkdown(blank, CTX).includes('未提供动作承接安排'), '空白备注显示待复核提示');
+}
 ok(html.includes('class="rseg"'), '节奏带按段分组（粗分隔）');
 ok(html.includes('#seg-E01-01'), '节奏带段可跳转');
 ok(html.includes('主分镜图 · #1 未生成'), '主分镜图缺图时显示占位不装有');

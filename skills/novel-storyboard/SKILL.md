@@ -1,12 +1,14 @@
 ---
 name: novel-storyboard
-version: 2.0.0
+version: 2.0.1
 description: |
   给 AI 短剧出分镜：三层结构——段（一次视频生成，≤15 秒）→ 分镜（段内 2–5 秒的剪切，认领剧本节拍）
   → 分镜图（每切一张关键帧：主分镜图钉 0.00 秒，子分镜图钉各自切点）。
   每段自带一条 MiniMax H3 视频提示词（官方口径默认英文、逐镜换行，promptLang 可切中文）：对齐指令和
   [Shot k] 切点时刻由分镜结构推导、逐字对账，台词逐字进 <d> 块（写法规范已内化为
   references/h3-prompt.md，不依赖外部 skill）。
+  写提示词前必须逐切规划起始、动作、结束与接镜，复用 cut.note 留存并进报告；
+  结构校验通过不代表动作语义通过，需按 references/continuity.md 反向复核。
   产出 storyboard.json + Markdown + 单页评审报告（分镜节奏带 / 分集分镜表 / 生成批次单 /
   配音对齐单，含导出 JSON）。不出图——交付的是每格的画面提示词和它该挂哪些参考图。
   18 道质量门全部由脚本确定性检查（第 18 道 shot-recipe 可选：挂上 shot-recipes 卡库才查，不挂就明说跳过）；
@@ -79,14 +81,16 @@ node {baseDir}/scripts/novel-storyboard.mjs seed <script.json> --eps 1-3 > <work
 
 确定性展开：每场的节拍清单（编号、动作/台词、每拍秒数、说话人）进 `seedScenes`，这就是切镜时的工作底稿。**每拍几秒是算出来的，不要让模型重新估。** shots 留空，切镜才是模型的活。
 
-### Step 2 — 逐集分段切镜
+### Step 2 — 逐集分段切镜并规划动作承接 ⛔ 不能跳
 
 每集一份任务，能并发就并发。每份任务拿到：
 
-- `{baseDir}/references/storyboard-pass.md` 和 `{baseDir}/references/schema.md`（读它们，照着做）
+- `{baseDir}/references/storyboard-pass.md`、`{baseDir}/references/continuity.md` 和 `{baseDir}/references/schema.md`（先读承接规则，再写提示词）
 - 该集的 seedScenes 底稿 + 场景卡（art.json 的锚点与光照提示词）+ 角色卡（cast.json 的形象要点）
 
 流程：**先按剧情单元分段**（每段 9–15 秒、不跨场），**段内切 2–5 秒的分镜**（对话正反打、关键动作插入特写、进场三件套——切镜语法都在 storyboard-pass.md），每切写一条分镜图提示词（中文，直呼角色名）、一段镜头正文 `shot`（中文，通用身份）和六个构图字段；每段写 `blocking`、`soundscape`，有配乐再写 `music`。
+
+**切完先规划承接，再写提示词**：按 `references/continuity.md` 在每切已有 `cut.note` 写起始、动作、结束、接镜四段短句，先检查同场相邻切与跨段边界。同一份安排喂三种提示词——`frame` 写切点当下的单一状态，`shot` 与 `h3Prompt` 写从这里开始的动作与结果；不擅自增加剧本没有的松手、离开、交接或恢复。不新增 JSON 字段，旧数据可省略；备注进报告，缺失会标注待人工复核。
 
 **每段的镜头正文照 `{baseDir}/references/shot-writing.md` 写**（协议无关：一切一个运镜、动作要做得完、台词逐字、声音分层、不写画风）。发给哪个视频服务，就再套哪份协议语法：MiniMax H3 见 `{baseDir}/references/h3-prompt.md`，Seedance 见 `{baseDir}/references/seedance-prompt.md`。
 
@@ -107,6 +111,8 @@ node {baseDir}/scripts/novel-storyboard.mjs validate <storyboard.json> \
 18 道质量门全是代码：节拍全覆盖（分镜级，恰好一次、按顺序、连续）、段 0 < 总秒 ≤ 15、**每切 2–5 秒**、台词装得进分镜、每集总时长在剧本目标 ±15% 内、同框 ≤ 3 人（超了必须带拆解说明）、段号 E01-01 格式连号、中文景别词在分镜图提示词里、运镜用 H3 词表且在自己的 [Shot k] 段落里、**H3 对齐指令由分镜结构推导逐字对账 + 切点时刻逐个对**、**认领台词逐字进 `<d>` 块**、**提示词语言与 promptLang 一致**（双向查：中文写成英文、英文混进中文都拦）、分镜图提示词中文非空、**视频提示词不含角色名**（H3 正文不分语言、Seedance 镜头正文都查；分镜图提示词直呼其名放行）、**构图量化字段齐全**、**Seedance 镜头正文合规**（中文非空，不写时间、镜头编号、图片引用和协议符号）、场次/人物/道具对账剧本、**镜头配方对账**（可选门，见下）。
 
 **有违规逐条修，改完重跑，直到通过。**
+
+这 18 项是程序结构检查，**不验证自由文本里的动作语义**。结构通过后，逐切对照剧本、`cut.note`、`frame` 与 `shot` / 对应 `[Shot k]` 段落做反向核对：动作有没有漏写或重复、起始状态是否提前完成动作、人物与持物状态能否接上、环境变化是否延续（清单见 `references/continuity.md`）。发现无依据的倒叙、起身、松手、交接时退回相应层修正，不把已完成写进下一切来掩盖缺失；不要把关键词齐全当作语义通过。
 
 **第 18 道 `shot-recipe`（可选挂载）**：给了 `--shots` 才查，不给就明说跳过。cut 上可以写一个可选的 `recipe`（配方卡 id，**cut 级不是 segment 级**，**多格配方靠连续同 id 的分镜表达**，不是数组），门查三条——id 在卡库里、卡片的每条 `must_phrases` 出现在该切的 `frame` 里（两边小写化后 `includes`）、卡片 `cuts` 下限 ≥ 2 时连续同 id 的分镜数不得低于该下限。卡片的**建议景别与运镜不设门**，只在报告的「配方」列和 `checkup` 末尾提示偏离：配方是语汇不是法条，可选挂载的东西一旦变严就没人挂。
 
@@ -179,7 +185,7 @@ node {baseDir}/scripts/novel-storyboard.mjs stats
 node {baseDir}/scripts/selftest.mjs
 ```
 
-323 项断言，不调模型、不花额度。18 道质量门每一道都有击穿用例。改完脚本先跑这个。
+338 项断言，不调模型、不花额度。18 道质量门每一道都有击穿用例。改完脚本先跑这个。
 
 ## 自带样例
 

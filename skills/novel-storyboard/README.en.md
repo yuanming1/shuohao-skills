@@ -4,6 +4,8 @@
 
 # novel-storyboard
 
+**v2.0.1 (fork): plan action continuity before writing prompts.** Each cut records its starting state, action, ending state and handoff in the existing `cut.note`; `frame`, `shot` and `h3Prompt` share that plan. Markdown / HTML reports show these notes, flag missing plans for manual review, and state up front that structural gates do not verify action semantics. No new JSON fields, no new gates; see `references/continuity.md`.
+
 Storyboarding for AI short drama: turns novel-script's beat flow into a worklist you can hand straight to a video model. This is the first layer in the pipeline that talks directly to that model, and the premise is baked in: **shots are generated, so one more cut costs almost nothing** — and the short-drama attention span runs on ~3-second cuts. Hence a three-level structure:
 
 ```
@@ -122,7 +124,7 @@ node scripts/novel-storyboard.mjs export sb.json --script script.json   # per-se
 node scripts/selftest.mjs
 ```
 
-323 assertions — beat expansion, H3 skeleton derivation, Seedance assembly, stats and batching, gate-defeating cases, recipe-card parsing and mounting, seed, rendering (both report UI languages), H3 and Seedance export. No model calls, runs in about a second.
+338 assertions — beat expansion, H3 skeleton derivation, Seedance assembly, stats and batching, gate-defeating cases, recipe-card parsing and mounting, seed, rendering (both report UI languages, continuity notes), H3 and Seedance export. No model calls, runs in about a second.
 
 The bundled example (`examples/渡口-storyboard.json`) is a complete episode-1 storyboard — 10 segments, 34 cuts claiming all 35 script beats at ~3.5s per cut, 119s against a 120s target, 2 generation batches, every segment carrying a fully audited H3 prompt.
 
