@@ -91,6 +91,8 @@ node {baseDir}/scripts/novel-script.mjs seed <outline.json> --eps 1-3 > <workdir
 
 写完把 `seedNote` 删掉。
 
+**前三拍规则不授权擅自倒叙。** 开场钩子必须与大纲的事件顺序相容；冲突时先调整上游钩子或确认非线性结构。预告/闪回要在动作节拍中落实观众可识别的出入口，不复制整段结尾动作来凑钩子。写完按 `references/script-pass.md` 复核坐起、松手、交接等状态变化是否有动作依据，再交分镜。
+
 ### Step 3 — 校验 ⛔ 不能跳
 
 ```bash

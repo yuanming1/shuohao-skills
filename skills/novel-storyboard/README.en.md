@@ -4,6 +4,8 @@
 
 # novel-storyboard
 
+**v1.3.1: plan action continuity before writing prompts.** Use the existing `cut.note` for each cut's starting state, action, ending state and handoff. Frame and video prompts share this plan. Markdown / HTML reports display these notes and flag missing plans for review. Structural validation, semantic continuity review and visual review are separate; passing gates or having every image does not prove continuity. Existing JSON remains compatible; new runs follow `references/continuity.md`.
+
 Storyboarding for AI short drama: turns novel-script's beat flow into a worklist you can hand straight to a video model. This is the first layer in the pipeline that talks directly to that model, and the premise is baked in: **shots are generated, so one more cut costs almost nothing** — and the short-drama attention span runs on ~3-second cuts. Hence a three-level structure:
 
 ```
@@ -104,10 +106,14 @@ node scripts/novel-storyboard.mjs checkup sb.json --script script.json
 node scripts/novel-storyboard.mjs validate sb.json --script script.json --shots /path/to/cards   # optional: the 17th gate
 node scripts/novel-storyboard.mjs render sb.json --html --script script.json --outline outline.json --art art.json > storyboard-report.html
 node scripts/novel-storyboard.mjs render sb.json --html --lang en --script script.json --outline outline.json --art art.json > storyboard-report.html   # English report UI
-node scripts/novel-storyboard.mjs export sb.json --script script.json   # per-segment folders: f1..fN.png + prompt.md
+node scripts/novel-storyboard.mjs review-template sb.json --script script.json --model h3 > review.json
+node scripts/novel-storyboard.mjs export sb.json --script script.json --review review.json
+node scripts/novel-storyboard.mjs export sb.json --script script.json --draft
 ```
 
 ## Limits
+
+**v1.4.0 production gate:** the review template starts with every cut pending. Inspect the actual frames and handoffs before recording a pass with evidence. Default export verifies the input fingerprint, complete review coverage, segment order, exact submitted durations and the H3 target; it does not judge image semantics. Use matching upstream flags and `--out` for the template and export, with frames already in that directory. Changed inputs invalidate the review. Other models require a separate adapter; unreviewed text-only delivery uses `--draft`, clearly marked as not production-ready. See `references/production.md`.
 
 - No writing or rewriting dialogue, no design sheets, no video generation or editing
 - Lip-sync is out of scope for now — that belongs to the generation pipeline
@@ -119,9 +125,10 @@ node scripts/novel-storyboard.mjs export sb.json --script script.json   # per-se
 
 ```bash
 node scripts/selftest.mjs
+node scripts/production-selftest.mjs
 ```
 
-254 assertions — beat expansion, H3 skeleton derivation, stats and batching, gate-defeating cases, recipe-card parsing and mounting, seed, rendering (both report UI languages), export. No model calls, runs in about a second.
+271 assertions — beat expansion, H3 skeleton derivation, stats and batching, gate-defeating cases, recipe-card parsing and mounting, seed, rendering (both report UI languages, continuity notes and review-scope notices), export. No model calls, runs in about a second.
 
 The bundled example (`examples/渡口-storyboard.json`) is a complete episode-1 storyboard — 10 segments, 34 cuts claiming all 35 script beats at ~3.5s per cut, 119s against a 120s target, 2 generation batches, every segment carrying a fully audited H3 prompt.
 

@@ -108,6 +108,8 @@ node {baseDir}/scripts/novel-outline.mjs validate <workdir>/outline.json --stage
 
 合并时按 ep 排序拼进 outline.json 的 `episodes`。
 
+**进入剧本前做时序复核**：`hook` 是本集开头已经成立的冲突，不是结尾卖点；默认顺叙，不能把结尾事件复制到开头来满足下游前三拍规则。确需预告/闪回，按 `episode-pass.md` 在 `synopsis` 交代时间出入口；同时核对 `crowdPlan` 没有把梗概里的搀扶、交接改成无接触。结构校验不证明这些语义正确，不新增 JSON 字段。
+
 ### Step 6 — 校验 ⛔ 不能跳
 
 ```bash

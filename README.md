@@ -20,7 +20,9 @@
 | [**novel-characters**](skills/novel-characters) | 把大纲定下的角色做成角色设定集：人物画像、形象提示词、音色提示词、角色设定图。吃 outline.json 预填角色表，报告语言与出图风格可选 |
 | [**novel-art**](skills/novel-art) | 给 AI 短剧出美术设定集（场景 + 叙事道具）：一致性锚点、光照与状态变体、尺度参照、无人无手白底提示词。吃 outline.json 预填清单，11 道质量门全部脚本检查 |
 | [**novel-script**](skills/novel-script) | 给 AI 短剧写剧本：场次 + 节拍流（动作与台词交替），逐集时长按语速确定性折算，钩子前 3 拍冷开场兑现是门，台词本按角色聚合带音色提示词直接对接 TTS。10 道质量门全部脚本检查 |
-| [**novel-storyboard**](skills/novel-storyboard) | 给 AI 短剧出分镜：段（一次生成 ≤15 秒）→ 分镜（2–5 秒硬门）→ 分镜图（主图钉 0.00 秒、子图钉各自切点），MiniMax H3 提示词的对齐指令与切点时刻逐字对账；分镜图拿设定图当参考图真出图，export 一键出投产包。17 道质量门全部脚本检查 |
+| [**novel-storyboard**](skills/novel-storyboard) | 给 AI 短剧出分镜：段（一次生成 ≤15 秒）→ 分镜（2–5 秒硬门）→ 分镜图（主图钉 0.00 秒、子图钉各自切点），MiniMax H3 提示词的对齐指令与切点时刻逐字对账；17 道结构门之外，export 要求绑定当前素材版本的逐切审核记录，只交文字用 --draft |
+| [**seedance-fantasy-ultimate-prompt**](skills/seedance-fantasy-ultimate-prompt) | 生成修仙玄幻大招的 Seedance 2.0 提示词：围绕一次技能释放生成 15 秒单段成品，固定输出标准与强化两条，九大属性招式库与国漫级设计语言库按索引调用，带反模板化自检 |
+| [**seedance-combat-prompt**](skills/seedance-combat-prompt) | 生成 Seedance 2.0 二次元打戏提示词：15 秒标准分镜，内置九角色武学体系、三十条铁律、十五种运镜与六册兵器技法资料库，同组合招式禁止重复 |
 
 **五个 skill 的报告都支持中英双语界面**：默认中文，`render --lang en` 出全英文报告（数据内容保持原文）。
 

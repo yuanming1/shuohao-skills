@@ -4,6 +4,8 @@
 
 # novel-storyboard
 
+**v1.4.0：结构通过不再等于允许投产。** 每切仍用 `cut.note` 规划承接；`review-template` 生成待审记录，绑定剧本、分镜、上游资料与图片版本。实际逐切复核后，`export --review` 检查审核完整性、段序与提交秒数；缺图、旧版审核和非 H3 目标不能直接投产。只交文字或旧数据尚未审核时用 `--draft`。不增加原业务 JSON 字段，程序不替代看图，详见 `references/continuity.md` 与 `references/production.md`。
+
 给 AI 短剧出**分镜**：把 novel-script 的节拍流切成可以直接下单给视频模型的生成任务单。这是管线里第一个直接面对视频模型的层，前提刻在骨子里：**镜头是生成出来的，多切一刀的成本几乎为零**，短剧观众的注意力节奏是 3 秒左右一切。所以结构是三层：
 
 ```
@@ -110,10 +112,14 @@ node scripts/novel-storyboard.mjs render sb.json --html \
      --script script.json --outline outline.json --art art.json > storyboard-report.html
 node scripts/novel-storyboard.mjs render sb.json --html --lang en \
      --script script.json --outline outline.json --art art.json > storyboard-report.html   # 英文界面报告
-node scripts/novel-storyboard.mjs export sb.json --script script.json   # H3 投产包
+node scripts/novel-storyboard.mjs review-template sb.json --script script.json --model h3 > review.json
+node scripts/novel-storyboard.mjs export sb.json --script script.json --review review.json
+node scripts/novel-storyboard.mjs export sb.json --script script.json --draft
 ```
 
 `export` 的投产结构固定：**每段一个文件夹** `E01-01/`——分镜图 `f1..fN.png` 和 `prompt.md` 同住（头部 Picture ↔ 文件对照表**明确 f1.png 是首帧**、各图钉在第几秒，分隔线以下是 h3Prompt 原样），根部 `manifest.json` 带 Picture 序图清单、切点时刻表、缺图标注。一个段文件夹 = 一次 H3 生成的全部材料。
+
+审核底稿默认全部待审，必须先按 `references/production.md` 实际并排看图、逐切填写依据，不能生成底稿后直接导出。两条命令的 `--out` 与上游输入参数要一致；图片须已在该输出目录。未审核内容仍可通过 `--draft` 导出，但提示词会标记不可直接投产。
 
 ## 边界
 
@@ -128,13 +134,17 @@ node scripts/novel-storyboard.mjs export sb.json --script script.json   # H3 投
 ```
 SKILL.md                 给 agent 读的工作流
 scripts/
-  novel-storyboard.mjs   seed / validate / checkup / render / export / slug
-  selftest.mjs           254 项断言，不调模型
+  novel-storyboard.mjs   seed / validate / checkup / render / review-template / export / slug
+  production-review.mjs  审核指纹、逐切记录、模型与提交清单检查
+  production-selftest.mjs  投产关口与 CLI 回归用例
+  selftest.mjs           271 项断言，不调模型
 references/
   schema.md              storyboard.json 结构 + 时长约束链
   h3-prompt.md           H3 提示词写法规范（官方方法论内化版）
   storyboard-pass.md     切镜：分段规则、导演运镜手感、常见病
   frame.md               分镜图出图的 codex 调用契约
+  continuity.md          动作承接与反例驱动复核
+  production.md          逐切审核记录与投产/成片验收边界
   report-style.md        报告的设计约定
 examples/
   渡口-storyboard.json    《渡口》第 1 集完整分镜（10 段 34 切认领 35 拍），全部质量门通过，也是自测夹具
@@ -146,8 +156,9 @@ assets/
 
 ```bash
 node scripts/selftest.mjs
+node scripts/production-selftest.mjs
 ```
 
-254 项断言，覆盖节拍展开 / H3 骨架推导 / 统计与批次 / 质量门逐项击穿 / 配方卡库解析与挂载 / seed / 渲染（含中英界面）/ 导出。不调模型、不花额度、1 秒跑完。改完脚本先跑这个。
+271 项断言，覆盖节拍展开 / H3 骨架推导 / 统计与批次 / 质量门逐项击穿 / 配方卡库解析与挂载 / seed / 渲染（含中英界面、承接备注与验收范围提示）/ 导出。不调模型、不花额度、1 秒跑完。改完脚本先跑这个。
 
 **只在 macOS + Node 24 上实测过。** 代码没有平台相关调用，Linux 和更低版本 Node 理论上没问题，但**没验过**。

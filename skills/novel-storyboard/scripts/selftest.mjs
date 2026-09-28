@@ -600,6 +600,34 @@ ok(renderMarkdown(FIXTURE, { script: SCRIPT }).includes('C03'), '不给 outline 
 /* ---------------- render html ---------------- */
 
 const html = renderHtml(FIXTURE, CTX);
+{
+  const planned = clone(FIXTURE);
+  const note = '起始：仍在搀扶。\n动作：转头说话。结束：手机仍在右手。接镜：保持站位 <script>alert(1)</script>';
+  planned.episodes[0].segments[0].cuts[0].note = note;
+  const plannedMarkdown = renderMarkdown(planned, CTX);
+  const plannedHtml = renderHtml(planned, CTX);
+  ok(plannedMarkdown.includes('动作承接 / 备注'), 'md 显示承接备注列');
+  ok(plannedMarkdown.includes('结束：手机仍在右手'), 'md 保留逐切承接内容');
+  ok(plannedHtml.includes('class="cut-note"'), 'html 显示逐切承接备注');
+  ok(plannedHtml.includes('仍在搀扶。'), 'html 保留承接状态');
+  ok(plannedHtml.includes('&lt;script&gt;alert(1)&lt;/script&gt;'), '承接备注按文本转义');
+  ok(!plannedHtml.includes('<script>alert(1)</script>'), '承接备注不能执行 HTML');
+  ok(md.includes('未提供动作承接安排'), '旧数据缺少备注时 md 明确提示');
+  ok(html.includes('未提供动作承接安排'), '旧数据缺少备注时 html 明确提示');
+  ok(plannedMarkdown.includes('结构门不自动验证动作语义或成图连续性'), 'md 区分结构校验与连续性验收');
+  ok(plannedHtml.includes('结构门不自动验证动作语义或成图连续性'), 'html 区分结构校验与连续性验收');
+  ok(renderHtml(planned, { ...CTX, imageExists: () => true }).includes('图片齐全不等于已验收'), '图片存在不能冒充成图已审核');
+  const englishHtml = renderHtml(planned, { ...CTX, lang: 'en' });
+  const englishMarkdown = renderMarkdown(planned, { ...CTX, lang: 'en' });
+  ok(englishHtml.includes('Continuity / notes'), '英文 html 显示承接标签');
+  ok(englishMarkdown.includes('Continuity / notes'), '英文 md 显示承接标签');
+  ok(englishHtml.includes('No continuity plan provided; manual review required.'), '英文 html 提示缺失承接安排');
+  ok(englishMarkdown.includes('Structural gates do not verify action semantics or visual continuity.'), '英文 md 提示验收范围');
+  eq(validateStoryboard(planned, CTX).length, 0, '承接备注不破坏原结构校验');
+  const blank = clone(FIXTURE);
+  blank.episodes[0].segments[0].cuts[0].note = '   ';
+  ok(renderMarkdown(blank, CTX).includes('未提供动作承接安排'), '空白备注显示待复核提示');
+}
 ok(html.includes('<!doctype html>'), 'html 完整文档');
 ok(!/src="http|href="http|@import|url\(http/.test(html), '零外部资源');
 ok(html.includes('分镜节奏带'), '01 分镜节奏带');

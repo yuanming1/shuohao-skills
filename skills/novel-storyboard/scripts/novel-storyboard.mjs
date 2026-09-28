@@ -6,6 +6,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { productionProblems, reviewTemplate } from './production-review.mjs';
 
 /* ------------------------------------------------------------------ */
 /* 常量                                                                */
@@ -897,13 +898,16 @@ const I18N = {
     subLabel: (i) => `子分镜 ${i}`,
     frameMissing: (i) => `#${i} 未生成`,
     framePrompt: '分镜图提示词',
+    continuityLabel: '动作承接 / 备注',
+    continuityMissing: '未提供动作承接安排，需人工复核。',
+    reviewScope: '结构门不自动验证动作语义或成图连续性；承接备注需对照剧本与实际图片另行复核，图片齐全不等于已验收。',
     h3Prompt: 'H3 提示词',
     h3Section: 'H3 视频提示词',
     showSegs: '▾ 展开全部段',
     hideSegs: '▴ 收起',
     copy: '复制', copied: '已复制', copyFailed: '复制失败',
     dialogueCols: ['段 · 切', '说话人', '台词', '台词秒数'],
-    cutCols: ['切', '起点', '秒', '景别', '运镜', '配方', '画面', '人物'],
+    cutCols: ['切', '起点', '秒', '景别', '运镜', '配方', '画面', '人物', '动作承接 / 备注'],
     batchCols: ['场景', '光照', '段', '需要的角色', '道具'],
     atSec: (t) => `${t.toFixed(2)}s 起`,
     batchLabel: (num) => `批次 ${num}`,
@@ -958,13 +962,16 @@ const I18N = {
     subLabel: (i) => `sub-frame ${i}`,
     frameMissing: (i) => `#${i} not generated`,
     framePrompt: 'Frame prompt',
+    continuityLabel: 'Continuity / notes',
+    continuityMissing: 'No continuity plan provided; manual review required.',
+    reviewScope: 'Structural gates do not verify action semantics or visual continuity. Review the notes against the script and actual images; having all images does not mean they have been reviewed.',
     h3Prompt: 'H3 prompt',
     h3Section: 'H3 video prompt',
     showSegs: '▾ Show all segments',
     hideSegs: '▴ Collapse',
     copy: 'Copy', copied: 'Copied', copyFailed: 'Copy failed',
     dialogueCols: ['Segment · cut', 'Speaker', 'Line', 'Seconds'],
-    cutCols: ['Cut', 'Start', 'Sec', 'Size', 'Camera', 'Recipe', 'Picture', 'Characters'],
+    cutCols: ['Cut', 'Start', 'Sec', 'Size', 'Camera', 'Recipe', 'Picture', 'Characters', 'Continuity / notes'],
     batchCols: ['Scene', 'Lighting', 'Segments', 'Characters needed', 'Props'],
     atSec: (t) => `from ${t.toFixed(2)}s`,
     batchLabel: (num) => `Batch ${num}`,
@@ -1050,6 +1057,7 @@ export function renderMarkdown(board, ctx = {}) {
   const stats = computeStats(board, ctx.script);
   const eps = board.episodes;
   const out = [`# ${t.docTitle(board.source, eps[0]?.ep, eps[eps.length - 1]?.ep)}`, ''];
+  out.push(`> ${t.reviewScope}`, '');
 
   for (const [i, ep] of eps.entries()) {
     const st = stats.episodes[i];
@@ -1071,6 +1079,7 @@ export function renderMarkdown(board, ctx = {}) {
           t.sizeName(cut.size), t.cameraLabel(cut.camera),
           rc ? `${rc.name}${rc.drift ? ` ≠（${rc.drift}）` : ''}` : t.recipeNone,
           summary, (cut.characters ?? []).map(n.char).join(t.listSep),
+          String(cut.note ?? '').trim() || t.continuityMissing,
         ]));
       });
       out.push('', `**${t.h3Section}**`, '', '```text', seg.h3Prompt ?? '', '```', '');
@@ -1199,6 +1208,7 @@ export function renderHtml(board, ctx = {}) {
     <button class="copy mini" data-copy="${esc(cut.frame ?? '')}">${esc(t.framePrompt)}</button>
   </div>
   ${summary}
+  <p class="cut-note"><b>${esc(t.continuityLabel)}：</b>${esc(String(cut.note ?? '').trim() || t.continuityMissing)}</p>
 </li>`;
             })
             .join('\n');
@@ -1316,6 +1326,8 @@ h1,h2,h3{margin:0;font-weight:400}
   padding:10px 14px;font-size:13px}
 .galert b{color:var(--seal)}
 .galert span{display:block;font-size:12px;color:var(--ink-2)}
+.review-scope{margin:12px 0;color:var(--ink-2);font-size:12px}
+.cut-note{white-space:pre-line;overflow-wrap:anywhere;color:var(--ink-2);font-size:12px}
 
 section.top-sec{margin-top:34px}
 .sec-h{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--rule-2);padding-bottom:8px;margin-bottom:16px}
@@ -1492,6 +1504,8 @@ td.serif{font-family:var(--serif)}
 </div>
 ${failed.length ? `<div class="galert"><b>✗ ${esc(t.gatesFail(failed.length))}</b>${failed.map((g) => `<span>${esc(gateText(g, t.langCode).label)}${g.detail ? ` — ${esc(gateText(g, t.langCode).detail)}` : ''}</span>`).join('')}</div>` : ''}
 
+<p class="review-scope">${esc(t.reviewScope)}</p>
+
 <section class="top-sec" id="sec-rhythm">
   <div class="sec-h"><span class="no">01</span><h2>${esc(t.secRhythm)}</h2><span class="note">${esc(t.rhythmNote)}</span></div>
   <div class="rhythm">
@@ -1612,8 +1626,11 @@ const USAGE = `novel-storyboard.mjs — novel-storyboard skill 的确定性工�
          [--html|--md] [--outline] [--art]    分镜图从 ./<段号>/f<切序>.png 找
          [--lang zh|en]                       报告界面语言（默认 zh；未指定时读取 JSON 顶层 lang 字段）
          [--shots <卡片目录>]                  报告的「配方」列显示卡名并标注建议景别／运镜的偏离
-  export <sb.json> --script <script.json>     导出 H3 投产包：每段一个文件夹 <段号>/prompt.md
-         [--out .]                            （分镜图 f1..fN.png 同住）+ 根部 manifest.json
+  review-template <sb.json> --script <script.json>  输出待审核 JSON 到 stdout，不自动批准
+         [--out .] [--model h3]                与 export 带相同的 --outline / --cast / --art
+  export <sb.json> --script <script.json>     导出 H3 包；默认要求当前版本的逐切审核
+         [--out .] --review <review.json>      图在输出目录 <段号>/f1..fN.png，须先实际验收
+         [--draft]                            只交文字的未验收草稿，与 --review 互斥
   stats                                       读当前目录的 .gates.jsonl，汇总哪道门最常响、
                                               哪道门从没响过（validate/checkup 会自动累积）
   slug <name>                                 剧名转安全文件名
@@ -1751,20 +1768,41 @@ function main(argv) {
     return;
   }
 
-  if (cmd === 'export') {
+  if (cmd === 'review-template' || cmd === 'export') {
     const [path] = rest;
-    if (!path) throw new Error('用法：export <storyboard.json> --script <script.json> [--out h3]');
+    if (!path) throw new Error('用法：review-template/export <storyboard.json> --script <script.json> [--out .] [--review review.json | --draft]');
     const board = readJson(path);
     const ctx = loadCtx(rest);
     if (!ctx.script) throw new Error('分镜离开剧本没有意义——必须给 --script <script.json>');
+    const structuralProblems = validateStoryboard(board, ctx);
+    if (structuralProblems.length) throw new Error(`结构校验未通过：\n${structuralProblems.join('\n')}`);
     const dir = flag(rest, '--out', '.');
+    const readImage = (rel) => {
+      try { return readFileSync(resolve(rel)); }
+      catch (error) { if (error.code === 'ENOENT') return null; throw error; }
+    };
+    if (cmd === 'review-template') {
+      console.log(JSON.stringify(reviewTemplate(board, ctx, { readImage, dir, model: flag(rest, '--model', '') }), null, 2));
+      return;
+    }
+    const draft = rest.includes('--draft');
+    const reviewPath = flag(rest, '--review');
+    if (draft && reviewPath) throw new Error('--draft 与 --review 不能同时使用，草稿不能冒充已验收投产包。');
+    if (!draft) {
+      const problems = productionProblems(board, ctx, reviewPath ? readJson(reviewPath) : null, { readImage, dir });
+      if (problems.length) throw new Error(`投产前检查未通过：\n${problems.join('\n')}`);
+    }
     const pack = exportPack(board, ctx.script, { imageExists: (rel) => existsSync(resolve(rel)), dir });
     for (const f of pack.files) {
       mkdirSync(resolve(f.path, '..'), { recursive: true });
-      writeFileSync(resolve(f.path), f.content, 'utf8');
+      const content = draft && f.path.endsWith('/prompt.md')
+        ? `> 草稿：未完成承接语义与成图连续性验收，不可直接投产。\n\n${f.content}`
+        : f.content;
+      writeFileSync(resolve(f.path), content, 'utf8');
     }
     const segN = pack.manifest.length;
-    console.log(`✓ ${segN} 段投产包 → ${resolve(dir)}/（每段一个文件夹：分镜图 + prompt.md；根部 manifest.json）`);
+    console.log(`${draft ? '⚠️ 草稿，未验收' : '✓ 审核记录及输入版本检查通过'}：${segN} 段 → ${resolve(dir)}/（prompt.md + manifest.json）`);
+    if (!draft) console.log('程序核对的是记录与输入版本，不替代人工视觉判断；生成后仍需核对实际切点、承接和声音。');
     if (pack.missingTotal) console.log(`⚠️ 缺 ${pack.missingTotal} 张分镜图，已在 manifest 的 missing 里标注——喂 H3 前先补齐`);
     return;
   }

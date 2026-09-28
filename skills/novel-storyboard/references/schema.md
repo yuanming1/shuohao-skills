@@ -38,11 +38,13 @@
 | `camera` | enum | 运镜，**直接用 H3 官方词表**（原样字符串）：`Static Shot` `Push In` `Pull Out` `Zoom In/Out` `Pan Left/Right` `Truck Left/Right` `Tilt Up/Down` `Pedestal Up/Down` `Arc Shot` `Tracking Shot` `Shake Slightly/Strongly` `POV` `Roll Clockwise/Counterclockwise` |
 | `characters` | string[] | 画内人物（C 编号），必须 ⊆ 剧本该场人物；空镜给空数组。> `maxOnScreen` 时必须带 `note` |
 | `props` | string[] | 画内道具（P 编号），必须 ⊆ 剧本该场道具。可省略 |
-| `frame` | string | **分镜图英文提示词**：这一格关键帧的样子。景别英文短语必须在里面；禁角色名 |
+| `frame` | string | **分镜图英文提示词**：切点当下的单一状态，不是整个动作过程；与 `note` 起始状态一致。景别英文短语必须在里面；禁角色名 |
 | `recipe` | string | 镜头配方卡 id，可选。挂了 `--shots <卡片目录>` 才查（`shot-recipe` 门）。**cut 级不是 segment 级**——一段可以跨多种配方；**多格配方靠连续同 id 的分镜表达**，不是数组 |
 | `note` | string | 备注，可选 |
 
 `recipe` 是**可选挂载**：不给 `--shots` 就整门跳过。给了就查三条——id 在卡库里、卡片的每条 `must_phrases` 出现在该切的 `frame` 里（两边小写化后 `includes`）、卡片 `cuts` 下限 ≥ 2 时连续同 id 的分镜数不得低于该下限。卡片的**建议景别与运镜不设门**，只在报告里提示偏离：配方是语汇不是法条。
+
+旧数据可以省略 `cut.note`；新写或重写分镜必须用此已有字段记录起始、动作、结束、接镜，见 `references/continuity.md`。由提示词编写、报告展示与成图复核消费，原有备注可以追加。当前程序不自动判定自由文本的连续性；不得用段级 `note` 代替逐切承接安排。
 
 ## h3Prompt 的结构（三道门盯着，两处逐字对账）
 
@@ -69,5 +71,7 @@ non_diegetic_music: …（1–3 句，没有就 N/A）
 5. `<d>` 块之外的正文语言与 `promptLang` 一致（中文写成英文、英文混进中文都拦）；英文模式禁角色名，中文模式放行（身份靠分镜图锚定）；每个分镜的运镜词（中文用词表中文词如「推」「固定」，英文用官方词）必须出现在**自己的 [Shot k] 段落**里
 
 ## 时长约束链
+
+投产时还要对照实际提交秒数与段序；`export` 要求独立 `review.json`，不向本 schema 增加字段。结构通过不等于审核通过，详见 `references/production.md`。只交文字使用 `--draft`。
 
 台词秒数（按剧本语速折算）≤ 分镜 `seconds` ≤ 5 秒；段 Σ分镜 ≤ 15 秒；集 Σ段 落在剧本 `targetSeconds` ±15%。全部由 validate 逐级对账。
