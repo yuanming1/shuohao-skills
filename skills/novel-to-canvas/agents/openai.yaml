@@ -1,0 +1,4 @@
+interface:
+  display_name: "短剧无限画布导出"
+  short_description: "将短剧分镜与参考图导出为原生无限画布项目包"
+  default_prompt: "使用 $novel-to-canvas 将这套短剧分镜导出为可导入的无限画布 ZIP。"
