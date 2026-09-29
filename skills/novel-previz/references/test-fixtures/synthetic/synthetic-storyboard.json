@@ -1,0 +1,240 @@
+{
+  "source": "合成夹具",
+  "promptLang": "zh",
+  "lang": "zh",
+  "params": { "maxSegmentSeconds": 15, "minCutSeconds": 2, "maxCutSeconds": 5, "maxOnScreen": 3, "tolerance": 0.15 },
+  "episodes": [
+    {
+      "ep": 1,
+      "segments": [
+        {
+          "id": "E01-01",
+          "sceneIndex": 1,
+          "blocking": "甲站在工作台前(画面左),乙在右侧货架旁(画面右),两人间隔约两步。",
+          "soundscape": "室内风扇低鸣,远处金属轻响。",
+          "music": "低速电子铺底,偶有单音。",
+          "cuts": [
+            {
+              "beats": [1, 1], "seconds": 2, "size": "medium", "camera": "Static Shot",
+              "characters": ["K01"], "props": [],
+              "frame": "中景,甲站在工作台前,双手撑在台面上,背景是货架。",
+              "shot": "镜头固定,甲站在工作台前双手撑台面,目光落在台面上的物件。",
+              "lens": "35mm 标准,中景深", "cameraPosition": "甲 + 平视正面",
+              "composition": "中心构图", "eyeline": "台面物件", "focus": "锁定甲的上半身",
+              "stability": "stable"
+            },
+            {
+              "beats": [1, 2], "seconds": 3, "size": "close", "camera": "Push In",
+              "characters": ["K01"], "props": [],
+              "frame": "特写,甲的面部,眉头微收。",
+              "shot": "镜头缓推,甲的面部特写,眉头微收,视线从台面抬起。",
+              "lens": "50mm 标准,中浅景深", "cameraPosition": "甲面部 + 平视正面",
+              "composition": "三分法", "eyeline": "前方", "focus": "锁定甲的双眼",
+              "stability": "stable"
+            },
+            {
+              "beats": [2, 3], "seconds": 2.5, "size": "wide", "camera": "Pull Out",
+              "characters": ["K01", "K02"], "props": [],
+              "frame": "全景,甲在工作台前,乙在右侧货架旁转身。",
+              "shot": "镜头后拉,室内全景,甲在工作台前,乙从右侧货架旁转过身来。",
+              "lens": "24mm 广角,深景深", "cameraPosition": "双人 + 平视正面",
+              "composition": "对称构图", "eyeline": "互相注视", "focus": "两人均在焦内",
+              "stability": "stable"
+            },
+            {
+              "beats": [3, 3], "seconds": 3, "size": "close", "camera": "Zoom In",
+              "characters": [], "props": ["Q01"],
+              "frame": "特写,对讲机躺在台面上,指示灯闪烁。",
+              "shot": "镜头变焦推近,台面上的对讲机特写,指示灯连闪两下。",
+              "lens": "85mm 长焦,浅景深", "cameraPosition": "对讲机 + 俯视 30°",
+              "composition": "中心构图", "eyeline": "无", "focus": "锁定对讲机",
+              "stability": "stable"
+            },
+            {
+              "beats": [3, 3], "seconds": 3, "size": "medium", "camera": "Zoom Out",
+              "characters": ["K01"], "props": [],
+              "frame": "中景,甲重新看回台面。",
+              "shot": "镜头变焦拉远,从中景回到工作台前的甲,他重新低下头。",
+              "lens": "35mm 标准,中景深", "cameraPosition": "甲 + 平视正面",
+              "composition": "三分法", "eyeline": "台面", "focus": "锁定甲的上半身",
+              "stability": "stable"
+            }
+          ],
+          "h3Prompt": "(夹具,不校验内容)"
+        },
+        {
+          "id": "E01-02",
+          "sceneIndex": 1,
+          "blocking": "甲仍在工作台前(画面左),乙绕到货架正面(画面右)。",
+          "soundscape": "风扇持续,货架金属轻颤。",
+          "cuts": [
+            {
+              "beats": [2, 2], "seconds": 3, "size": "medium", "camera": "Pan Left",
+              "characters": ["K01"], "props": [],
+              "frame": "中景,甲侧身听动静。",
+              "shot": "镜头左摇,甲在工作台前侧身,朝画面左侧听动静。",
+              "lens": "35mm 标准,中景深", "cameraPosition": "甲 + 平视正侧面",
+              "composition": "三分法", "eyeline": "画面左外", "focus": "锁定甲",
+              "stability": "stable"
+            },
+            {
+              "beats": [2, 2], "seconds": 3, "size": "medium", "camera": "Pan Right",
+              "characters": ["K02"], "props": [],
+              "frame": "中景,乙在货架前抬手取物。",
+              "shot": "镜头右摇,乙在货架前抬手取下一只小盒。",
+              "lens": "35mm 标准,中景深", "cameraPosition": "乙 + 平视正侧面",
+              "composition": "三分法", "eyeline": "货架", "focus": "锁定乙",
+              "stability": "stable"
+            },
+            {
+              "beats": [2, 3], "seconds": 3, "size": "wide", "camera": "Truck Left",
+              "characters": ["K01", "K02"], "props": [],
+              "frame": "全景,两人隔着过道对望。",
+              "shot": "镜头左移,全景里甲与乙隔着过道对望,谁都没先开口。",
+              "lens": "28mm 广角,深景深", "cameraPosition": "双人 + 平视正面",
+              "composition": "引导线构图", "eyeline": "互相注视", "focus": "两人均在焦内",
+              "stability": "stable"
+            },
+            {
+              "beats": [3, 3], "seconds": 3, "size": "medium", "camera": "Truck Right",
+              "characters": ["K01"], "props": [],
+              "frame": "中景,甲转身面对乙。",
+              "shot": "镜头右移,甲转过身来正对乙的方向。",
+              "lens": "35mm 标准,中景深", "cameraPosition": "甲 + 平视正面",
+              "composition": "中心构图", "eyeline": "乙", "focus": "锁定甲",
+              "stability": "stable"
+            }
+          ],
+          "h3Prompt": "(夹具,不校验内容)"
+        },
+        {
+          "id": "E01-03",
+          "sceneIndex": 1,
+          "blocking": "甲独自在室内,从台前走向窗边。",
+          "soundscape": "风扇声渐弱,窗外隐约车流。",
+          "cuts": [
+            {
+              "beats": [3, 3], "seconds": 2.5, "size": "medium", "camera": "Tilt Up",
+              "characters": ["K01"], "props": [],
+              "frame": "中景,甲抬头看向高处。",
+              "shot": "镜头上摇,甲抬头,视线顺着墙面爬向高处窗户。",
+              "lens": "35mm 标准,中景深", "cameraPosition": "甲 + 平视正面",
+              "composition": "引导线构图", "eyeline": "高处", "focus": "锁定甲",
+              "stability": "stable"
+            },
+            {
+              "beats": [3, 3], "seconds": 2.5, "size": "close", "camera": "Tilt Down",
+              "characters": ["K01"], "props": [],
+              "frame": "特写,甲的视线落回台面。",
+              "shot": "镜头下摇,从窗框落回台面上的对讲机。",
+              "lens": "50mm 标准,中浅景深", "cameraPosition": "台面 + 俯视 30°",
+              "composition": "三分法", "eyeline": "台面", "focus": "锁定对讲机",
+              "stability": "stable"
+            },
+            {
+              "beats": [3, 3], "seconds": 2.5, "size": "wide", "camera": "Pedestal Up",
+              "characters": ["K01"], "props": [],
+              "frame": "全景,室内纵深,甲在窗前。",
+              "shot": "机位整体上升,全景里室内纵深展开,甲立在窗前逆着光。",
+              "lens": "28mm 广角,深景深", "cameraPosition": "甲 + 平视正面",
+              "composition": "框架构图", "eyeline": "窗外", "focus": "锁定甲",
+              "stability": "stable"
+            },
+            {
+              "beats": [3, 3], "seconds": 2.5, "size": "medium", "camera": "Pedestal Down",
+              "characters": ["K01"], "props": [],
+              "frame": "中景,甲垂眼。",
+              "shot": "机位整体下降,回到与甲平齐的中景,他垂下眼。",
+              "lens": "35mm 标准,中景深", "cameraPosition": "甲 + 平视正面",
+              "composition": "中心构图", "eyeline": "下方", "focus": "锁定甲",
+              "stability": "stable"
+            },
+            {
+              "beats": [3, 3], "seconds": 2.5, "size": "close", "camera": "Arc Shot",
+              "characters": ["K01"], "props": [],
+              "frame": "特写,甲侧脸。",
+              "shot": "镜头绕行,甲的侧脸特写,窗光在脸上移动。",
+              "lens": "85mm 长焦,浅景深", "cameraPosition": "甲侧脸 + 平视",
+              "composition": "对角线构图", "eyeline": "窗外", "focus": "锁定甲侧脸",
+              "stability": "stable"
+            },
+            {
+              "beats": [3, 3], "seconds": 2.5, "size": "extreme-wide", "camera": "Static Shot",
+              "characters": [], "props": [],
+              "frame": "大远景,空荡的室内全景。",
+              "shot": "镜头固定,大远景,整个室内空下来,只有风扇在转。",
+              "lens": "24mm 广角,深景深", "cameraPosition": "室内中心 + 平视",
+              "composition": "对称构图", "eyeline": "无", "focus": "室内全景",
+              "stability": "stable"
+            }
+          ],
+          "h3Prompt": "(夹具,不校验内容)"
+        },
+        {
+          "id": "E01-04",
+          "sceneIndex": 2,
+          "blocking": "外景空地,甲背对镜头走向纵深,石凳在画面右。",
+          "soundscape": "风声,远处断续的犬吠。",
+          "music": "无",
+          "cuts": [
+            {
+              "beats": [1, 1], "seconds": 3.3, "size": "medium", "camera": "Tracking Shot",
+              "characters": ["K01"], "props": [],
+              "frame": "中景,甲在空地上走。",
+              "shot": "镜头跟随,甲在空地上向纵深走,风把外套吹起一角。",
+              "lens": "35mm 标准,中景深", "cameraPosition": "甲 + 背后平视跟随",
+              "composition": "中心构图", "eyeline": "前方", "focus": "锁定甲背影",
+              "stability": "slight-shake"
+            },
+            {
+              "beats": [1, 1], "seconds": 2.4, "size": "close", "camera": "Shake Slightly",
+              "characters": ["K01"], "props": [],
+              "frame": "特写,甲脚步碾过碎石。",
+              "shot": "轻微晃动的特写,甲的脚步碾过碎石,尘土扬起。",
+              "lens": "50mm 标准,中浅景深", "cameraPosition": "脚步 + 俯视",
+              "composition": "对角线构图", "eyeline": "地面", "focus": "锁定脚步",
+              "stability": "slight-shake"
+            },
+            {
+              "beats": [1, 1], "seconds": 2.4, "size": "wide", "camera": "Shake Strongly",
+              "characters": ["K01"], "props": [],
+              "frame": "全景,甲停步回头。",
+              "shot": "强烈晃动的全景,甲猛地停步回头,外套还在摆。",
+              "lens": "28mm 广角,深景深", "cameraPosition": "甲 + 平视正面",
+              "composition": "三分法", "eyeline": "身后", "focus": "锁定甲",
+              "stability": "handheld"
+            },
+            {
+              "beats": [1, 1], "seconds": 2.4, "size": "extreme-close", "camera": "POV",
+              "characters": ["K01"], "props": [],
+              "frame": "大特写,主观视野里的地平线。",
+              "shot": "主观视角大特写,视野尽头地平线在热浪里抖。",
+              "lens": "24mm 广角,深景深", "cameraPosition": "甲主观 + 平视",
+              "composition": "中心构图", "eyeline": "地平线", "focus": "远景全焦",
+              "stability": "handheld"
+            },
+            {
+              "beats": [1, 1], "seconds": 2.4, "size": "close", "camera": "Roll Clockwise",
+              "characters": ["K01"], "props": [],
+              "frame": "特写,甲侧身。",
+              "shot": "镜头顺时针倾斜,甲侧身的特写,天地斜转。",
+              "lens": "50mm 标准,中浅景深", "cameraPosition": "甲 + 平视正侧面",
+              "composition": "对角线构图", "eyeline": "前方", "focus": "锁定甲",
+              "stability": "stable"
+            },
+            {
+              "beats": [1, 1], "seconds": 2.1, "size": "medium", "camera": "Roll Counterclockwise",
+              "characters": [], "props": ["Q02"],
+              "frame": "中景,石凳立在空地边缘。",
+              "shot": "镜头逆时针倾斜,石凳立在空地边缘,风卷起纸屑。",
+              "lens": "35mm 标准,中景深", "cameraPosition": "石凳 + 平视正面",
+              "composition": "三分法", "eyeline": "无", "focus": "锁定石凳",
+              "stability": "stable"
+            }
+          ],
+          "h3Prompt": "(夹具,不校验内容)"
+        }
+      ]
+    }
+  ]
+}

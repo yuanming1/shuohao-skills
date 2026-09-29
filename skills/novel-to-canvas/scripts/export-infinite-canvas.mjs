@@ -2,8 +2,6 @@
 import { basename, extname, resolve } from "node:path";
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 
-const PHOTO_PREFIX = "Photorealistic live-action cinematic character reference, natural skin texture, true-to-life facial anatomy, realistic fabric and physically plausible lighting, no stylization.";
-const PHOTO_NEGATIVE = "anime, manga, comic panel, illustration, cel shading, stylized fantasy art, 3D render, plastic skin, inconsistent identity, different hairstyle, deformed anatomy, extra digits, readable text or logos";
 const SHOT_SIZES = { wide: "全景", medium: "中景", close: "特写", extreme_close: "大特写" };
 const CAMERA = { "Static Shot": "固定镜头", "Tracking Shot": "跟拍", "Push In": "缓慢推镜", "Pull Out": "缓慢拉镜", "Pan Left": "左摇镜头", "Pan Right": "右摇镜头", "Tilt Up": "上摇镜头", "Tilt Down": "下摇镜头", "Handheld": "手持跟拍" };
 const STABILITY = { stable: "稳定", "slight-shake": "微晃", handheld: "手持轻晃" };
@@ -118,12 +116,13 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
         (scene.lighting || []).forEach((lighting, index) => {
             const stem = `${slug(scene.name)}-L${index + 1}-${slug(lighting.state)}`;
             const position = assetPosition();
-            const node = makeImageNode({ title: `写实场景 · ${scene.name} · ${lighting.state}`, x: position.x, y: position.y, prompt: lighting.prompt || scene.image?.prompt || "", imageFile: findImage(imageFiles, stem) });
+            const node = makeImageNode({ title: `场景 · ${scene.name} · ${lighting.state}`, x: position.x, y: position.y, prompt: lighting.prompt || scene.image?.prompt || "", imageFile: findImage(imageFiles, stem) });
             lightingNodes.set(lighting.state, node.id);
         });
         const sheetPosition = assetPosition();
-        const sheet = makeImageNode({ title: `写实场景 · ${scene.name} · 多视角设定图`, x: sheetPosition.x, y: sheetPosition.y, prompt: scene.image?.sheet || scene.image?.prompt || "", imageFile: findImage(imageFiles, `${slug(scene.name)}-sheet`) });
-        sceneReference.set(scene.id, { lightingNodes, fallback: sheet.id });
+        const sheet = makeImageNode({ title: `场景 · ${scene.name} · 多视角设定图`, x: sheetPosition.x, y: sheetPosition.y, prompt: scene.image?.sheet || scene.image?.prompt || "", imageFile: findImage(imageFiles, `${slug(scene.name)}-sheet`) });
+        for (const lightingNodeId of lightingNodes.values()) addConnection(sheet.id, lightingNodeId);
+        sceneReference.set(scene.id, { lightingNodes, sheetId: sheet.id });
     }
 
     for (const prop of art.props) {
@@ -131,12 +130,13 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
         (prop.states || []).forEach((state, index) => {
             const stem = `${slug(prop.name)}-S${index + 1}-${slug(state.state)}`;
             const position = assetPosition();
-            const node = makeImageNode({ title: `写实道具 · ${prop.name} · ${state.state}`, x: position.x, y: position.y, prompt: state.prompt || prop.image?.prompt || "", imageFile: findImage(imageFiles, stem) });
+            const node = makeImageNode({ title: `道具 · ${prop.name} · ${state.state}`, x: position.x, y: position.y, prompt: state.prompt || prop.image?.prompt || "", imageFile: findImage(imageFiles, stem) });
             stateNodes.push(node.id);
         });
         const sheetPosition = assetPosition();
-        const sheet = makeImageNode({ title: `写实道具 · ${prop.name} · 多视角设定图`, x: sheetPosition.x, y: sheetPosition.y, prompt: prop.image?.sheet || prop.image?.prompt || "", imageFile: findImage(imageFiles, `${slug(prop.name)}-sheet`) });
-        propReference.set(prop.id, stateNodes[0] || sheet.id);
+        const sheet = makeImageNode({ title: `道具 · ${prop.name} · 多视角设定图`, x: sheetPosition.x, y: sheetPosition.y, prompt: prop.image?.sheet || prop.image?.prompt || "", imageFile: findImage(imageFiles, `${slug(prop.name)}-sheet`) });
+        for (const stateNodeId of stateNodes) addConnection(sheet.id, stateNodeId);
+        propReference.set(prop.id, [...stateNodes, sheet.id]);
     }
 
     const characterReference = new Map();
@@ -144,7 +144,7 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
     for (let index = 0; index < cast.characters.length; index += 1) {
         const character = cast.characters[index];
         const core = characterCore(character.image?.prompt || "");
-        const negative = [character.image?.negativePrompt, PHOTO_NEGATIVE].filter(Boolean).join(", ");
+        const negative = String(character.image?.negativePrompt || "").trim();
         const master = addNode({
             type: "image",
             title: `角色锚点 · ${character.name} · 正面全身`,
@@ -153,14 +153,15 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
             height: 540,
             metadata: {
                 content: "",
-                prompt: `${PHOTO_PREFIX} ${core} Front-facing full-length body, neutral standing pose, both shoulders and both feet fully visible, straight-on orthographic camera, plain white studio background and soft floor contact shadow. Avoid ${negative}.`,
+                prompt: withNegative(`${core} Front-facing full-length body, neutral standing pose, both shoulders and both feet fully visible, straight-on orthographic camera, plain white studio background and soft floor contact shadow.`, negative),
                 status: "idle",
                 generationMode: "image",
                 count: 1,
                 size: "2:3",
             },
         });
-        characterReference.set(character.id, master.id);
+        const reference = { masterId: master.id, viewNodeIds: new Map() };
+        characterReference.set(character.id, reference);
         if (!includeCharacterViews) continue;
         const creature = isCreature(character);
         for (const [viewIndex, view] of (creature ? creatureViews() : humanViews()).entries()) {
@@ -172,7 +173,7 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
                 height: 260,
                 metadata: {
                     content: "",
-                    prompt: `${PHOTO_PREFIX} Use the attached ${character.name} master reference image to preserve exactly the same identity, facial features, proportions, hairstyle, costume and identifying visual anchors. ${core} ${view.direction} Avoid ${negative}.`,
+                    prompt: withNegative(`Use the attached ${character.name} master reference image to preserve exactly the same identity, facial features, proportions, hairstyle, costume and identifying visual anchors. ${core} ${view.direction}`, negative),
                     status: "idle",
                     generationMode: "image",
                     count: 1,
@@ -180,6 +181,7 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
                 },
             });
             addConnection(master.id, viewNode.id);
+            reference.viewNodeIds.set(view.title, viewNode.id);
         }
     }
 
@@ -209,14 +211,20 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
                 keyframeNodes.push(frame);
                 keyframes += 1;
                 const sceneAsset = sceneReference.get(scriptScene.sceneId);
-                const sceneNodeId = sceneAsset?.lightingNodes.get(scriptScene.lighting) || sceneAsset?.fallback;
+                const sceneNodeId = sceneAsset?.lightingNodes.get(scriptScene.lighting) || sceneAsset?.sheetId;
                 if (sceneNodeId) addConnection(sceneNodeId, frame.id);
-                const characterIds = new Set([...(scriptScene.characters || []), ...(cut.characters || [])]);
+                const characterIds = new Set(Array.isArray(cut.characters) ? cut.characters : (scriptScene.characters || []));
                 for (const characterId of characterIds) {
-                    if (characterId !== "VO" && characterReference.has(characterId)) addConnection(characterReference.get(characterId), frame.id);
+                    if (characterId === "VO") continue;
+                    const reference = characterReference.get(characterId);
+                    if (!reference) continue;
+                    addConnection(reference.masterId, frame.id);
+                    for (const viewNodeId of selectCharacterViewIds(reference, cut)) addConnection(viewNodeId, frame.id);
                 }
-                const propIds = new Set([...(scriptScene.props || []), ...(cut.props || [])]);
-                for (const propId of propIds) if (propReference.has(propId)) addConnection(propReference.get(propId), frame.id);
+                const propIds = new Set(Array.isArray(cut.props) ? cut.props : (scriptScene.props || []));
+                for (const propId of propIds) {
+                    for (const propNodeId of propReference.get(propId) || []) addConnection(propNodeId, frame.id);
+                }
             });
             const seconds = String(Math.max(1, Math.round(segment.cuts.reduce((total, cut) => total + Number(cut.seconds || 0), 0))));
             const videoX = 400 + segment.cuts.length * 380 + 20;
@@ -327,6 +335,26 @@ function characterCore(prompt) {
     return withoutPose.replace(/\s*(?:His|Her|Their) single identifying anchor:[^.]*?(?:phone|smartphone|mobile|black rectangular slab)[^.]*\.\s*/gi, " ").replace(/\s{2,}/g, " ").trim();
 }
 
+function selectCharacterViewIds(reference, cut) {
+    const text = [cut.frame, cut.shot, cut.cameraPosition, cut.composition, cut.eyeline, cut.focus].filter(Boolean).join(" ");
+    const viewTitle =
+        /鞋|足部|脚步|鞋底|鞋尖|鞋跟|下摆/.test(text) ? "鞋部锚点" :
+            /袖口|手腕|手掌|手指|拇指|手部|袖子/.test(text) ? "袖口锚点" :
+                /领口|衣襟|胸前|肩章|胸徽|胸牌|衣领/.test(text) ? "领口与胸前锚点" :
+                    /发髻|发型|头冠|头饰|发簪|头发/.test(text) ? "发型与头部锚点" :
+                        /背影|背面|后背|背部|从背后|背向|背对/.test(text) ? "背面全身" :
+                            /45\s*度|斜侧|三分之二|侧前/.test(text) ? "45 度头像" :
+                                /侧脸|侧面|侧身|侧拍|侧后|90\s*度/.test(text) ? "侧面 90 度" :
+                                    /特写|大特写|面部|脸部|眼睛|眼神/.test(text) || ["close", "extreme_close"].includes(cut.size) ? "正面头像" :
+                                        null;
+    const viewNodeId = viewTitle ? reference.viewNodeIds.get(viewTitle) : null;
+    return viewNodeId ? [viewNodeId] : [];
+}
+
+function withNegative(prompt, negative) {
+    return negative ? `${prompt} Avoid ${negative}.` : prompt;
+}
+
 function isCreature(character) {
     const text = [character.image?.prompt, ...(character.image?.tags || [])].join(" ").toLowerCase();
     return text.includes("quadruped") || text.includes("creature") || text.includes("spirit beast");
@@ -372,6 +400,9 @@ function validateCanvas(args) {
     if (!h3.length || h3.length !== seedance.length) fail("H3 与豆包 Seedance 视频节点数量不一致。");
     if (seedance.some((node) => !node.metadata?.prompt?.includes("【镜头1】") || !node.metadata?.prompt?.includes("【约束】"))) fail("存在不完整的豆包 Seedance 提示词。");
     if (keyframes.some((node) => /场景一致性锚点|光照状态：|保持已连接的写实场景/.test(node.metadata?.prompt || ""))) fail("关键帧中混入了不应追加的场景说明。");
+    const connectedNodeIds = new Set(project.connections.flatMap((connection) => [connection.fromNodeId, connection.toNodeId]));
+    const unlinkedReferences = nodes.filter((node) => node.type === "image" && /^(场景|道具|角色锚点|角色视图) ·/.test(node.title) && !connectedNodeIds.has(node.id));
+    if (unlinkedReferences.length) fail(`存在 ${unlinkedReferences.length} 个未连线的参考图片节点：${unlinkedReferences.map((node) => node.title).join("、")}`);
     const files = manifest.projects.flatMap((item) => item.files || []);
     const missing = files.filter((file) => !entries.has(file.path));
     if (missing.length) fail(`ZIP 缺少 ${missing.length} 个嵌入图片。`);

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" width="1200" height="620" role="img" aria-labelledby="title desc">
+  <title id="title">Who controls what</title>
+  <desc id="desc">Three hand-drawn columns divide control among the greybox, prompt, and asset stills, followed by a conflict-resolution rule.</desc>
+  <style>
+    .bg{fill:#0E1012}.card{fill:none;stroke:#C9CDD2;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}.echo{fill:none;stroke:#C9CDD2;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;opacity:.4}.line{fill:none;stroke:#C9CDD2;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}.t{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;fill:#E9EAEB}.muted{fill:#8B9198}.o{fill:#FF6B0F}.b{fill:#337AEB}.strokeO{stroke:#FF6B0F}.strokeB{stroke:#337AEB}
+  </style>
+  <path class="bg" d="M0 0 L1200 0 L1200 620 L0 620 Z"/>
+  <text class="t" x="48" y="62" font-size="42" font-weight="700">Who controls what</text>
+
+  <path class="card" d="M52 98 L171 96 L283 99 L402 96 M407 101 L409 214 L407 337 L410 463 M405 468 L286 466 L166 470 L49 468 M44 463 L46 342 L44 219 L47 103"/><path class="echo" d="M55 101 L174 99 L281 102 L399 99 M404 104 L406 217 L404 334 L407 460 M402 465 L283 463 L169 467 L52 465 M48 460 L50 339 L48 222 L51 106"/>
+  <path class="card" d="M426 96 L546 99 L661 97 L778 100 M783 104 L781 219 L783 338 L780 463 M775 468 L660 466 L540 469 L424 466 M419 461 L422 339 L419 218 L421 101"/><path class="echo" d="M429 99 L549 102 L658 100 L775 103 M780 107 L778 222 L780 335 L777 460 M772 465 L657 463 L543 466 L427 463 M423 458 L426 336 L423 221 L425 104"/>
+  <path class="card" d="M800 99 L919 96 L1035 100 L1151 96 M1156 101 L1158 218 L1156 339 L1159 463 M1154 468 L1037 466 L914 470 L798 468 M793 463 L796 341 L793 218 L795 104"/><path class="echo" d="M803 102 L922 99 L1032 103 L1148 99 M1153 104 L1155 221 L1153 336 L1156 460 M1151 465 L1034 463 L917 467 L801 465 M797 460 L800 338 L797 221 L799 107"/>
+
+  <text class="t o" x="75" y="146" font-size="28" font-weight="750">GREYBOX</text>
+  <text class="t" x="449" y="146" font-size="28" font-weight="750">PROMPT</text>
+  <text class="t b" x="823" y="146" font-size="28" font-weight="750">ASSET STILLS</text>
+  <path class="line" d="M73 161 C168 159 279 163 380 160"/><path class="echo" d="M74 164 C170 162 280 166 381 163"/>
+  <path class="line" d="M447 161 C542 163 655 159 756 162"/><path class="echo" d="M448 164 C544 166 657 162 757 165"/>
+  <path class="line" d="M821 162 C916 159 1031 163 1132 160"/><path class="echo" d="M822 165 C918 162 1032 166 1133 163"/>
+
+  <g class="t" font-size="21">
+    <text x="76" y="205"><tspan x="76">who stands where &amp; facing</tspan><tspan x="76" dy="52">what sits where</tspan><tspan x="76" dy="52">camera, framing, focal length</tspan><tspan x="76" dy="52">when each hard cut lands</tspan><tspan x="76" dy="52">when a prop moves,</tspan><tspan x="96" dy="28">and to where</tspan></text>
+    <text x="450" y="205"><tspan x="450">emotional arc &amp; beats</tspan><tspan x="450" dy="52">dialogue, verbatim</tspan><tspan x="450" dy="52">what must NOT happen</tspan><tspan x="450" dy="52">pacing and delivery</tspan><tspan x="450" dy="52">on-screen text bans</tspan></text>
+    <text x="824" y="205"><tspan x="824">face &amp; hair</tspan><tspan x="824" dy="52">wardrobe detail</tspan><tspan x="824" dy="52">real material &amp; light</tspan><tspan x="844" dy="28">of the space</tspan><tspan x="824" dy="52">prop silhouette &amp; hardware</tspan><tspan x="824" dy="52">brand-safe surfaces</tspan></text>
+  </g>
+  <!-- sparse hatching accents -->
+  <g class="line" opacity=".75">
+    <path class="strokeO" d="M55 118 L62 111 L70 102 M56 139 L70 124 L88 103 M383 456 L391 449 L401 438"/>
+    <path d="M429 119 L446 102 M430 139 L466 102 M756 459 L775 440"/>
+    <path class="strokeB" d="M803 120 L811 112 L821 103 M804 140 L821 123 L841 102 M1133 458 L1142 450 L1151 440"/>
+  </g>
+
+  <!-- conflict banner -->
+  <path class="card" d="M52 493 L327 491 L602 494 L875 491 L1152 490 M1157 495 L1155 531 L1157 573 M1152 578 L873 576 L599 579 L326 577 L50 580 M45 575 L47 538 L45 498"/><path class="echo" d="M55 496 L330 494 L599 497 L878 494 L1149 493 M1154 498 L1152 534 L1154 570 M1149 575 L870 573 L602 576 L323 574 L53 577 M49 572 L51 535 L49 501"/>
+  <text class="t" x="76" y="547" font-size="21" font-weight="650">
+    <tspan>position &amp; facing → </tspan><tspan class="o" font-weight="800">GREYBOX</tspan>
+    <tspan dx="42">look &amp; light → </tspan><tspan class="b" font-weight="800">ASSET STILLS</tspan>
+    <tspan dx="42">everything else → </tspan><tspan fill="#E9EAEB" font-weight="800">PROMPT</tspan>
+  </text>
+</svg>

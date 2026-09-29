@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400" viewBox="0 0 1200 400"
+     role="img" aria-labelledby="wt wd">
+  <title id="wt">Pipeline</title>
+  <desc id="wd">One geometry file feeds two renders. A human confirms the review pass; failing the gate loops back to the geometry at no cost. The flat model pass, the prompt and the asset stills go to the video model, and the result is measured back against the same shot table.</desc>
+
+  <defs>
+    <style>
+      .ui   { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif; }
+      .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+      .box  { fill:#16191C; stroke:#2A3036; stroke-width:1.5; }
+      .t    { font-size:21px; fill:#E9EAEB; }
+      .s    { font-size:16px; fill:#7B828A; }
+      .lbl  { font-size:16px; fill:#8B9198; }
+      .flow { fill:none; stroke:#3F464D; stroke-width:2; }
+    </style>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#5A6169"/>
+    </marker>
+    <marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#FF6B0F"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="400" rx="24" fill="#0E1012"/>
+
+  <!-- inputs -->
+  <g>
+    <rect class="box" x="56" y="96" width="186" height="68" rx="10"/>
+    <text class="mono t" x="72" y="126">scene.py</text>
+    <text class="ui s"   x="72" y="150">geometry · cameras · timeline</text>
+
+    <rect class="box" x="56" y="216" width="186" height="60" rx="10"/>
+    <text class="mono t" x="72" y="243">prompt.txt</text>
+    <text class="ui s"   x="72" y="264">performance · look · dialogue</text>
+
+    <rect class="box" x="56" y="302" width="186" height="60" rx="10"/>
+    <text class="mono t" x="72" y="329">asset stills</text>
+    <text class="ui s"   x="72" y="350">character · plate · props</text>
+  </g>
+
+  <!-- two passes -->
+  <g>
+    <rect class="box" x="292" y="78" width="176" height="56" rx="10" stroke="#4A3520"/>
+    <rect x="292" y="78" width="4" height="56" rx="2" fill="#FF6B0F"/>
+    <text class="ui" x="310" y="103" font-size="20" fill="#E9EAEB">review pass</text>
+    <text class="ui s" x="310" y="123">outlined · coloured</text>
+
+    <rect class="box" x="292" y="166" width="176" height="56" rx="10"/>
+    <rect x="292" y="166" width="4" height="56" rx="2" fill="#8B9198"/>
+    <text class="ui" x="310" y="191" font-size="20" fill="#E9EAEB">model pass</text>
+    <text class="ui s" x="310" y="211">flat grey · no text</text>
+  </g>
+
+  <!-- gate -->
+  <rect class="box" x="518" y="78" width="196" height="56" rx="10" stroke="#FF6B0F"/>
+  <text class="ui" x="536" y="103" font-size="20" fill="#E9EAEB">human confirms</text>
+  <text class="ui s" x="536" y="123">the only gate</text>
+
+  <!-- model + verify -->
+  <rect class="box" x="748" y="176" width="180" height="84" rx="10" stroke="#243C63"/>
+  <rect x="748" y="176" width="4" height="84" rx="2" fill="#337AEB"/>
+  <text class="ui" x="768" y="208" font-size="20" fill="#E9EAEB">video model</text>
+  <text class="ui s" x="768" y="230">video-ref + image-ref</text>
+  <text class="ui s" x="768" y="249">this is the paid step</text>
+
+  <rect class="box" x="964" y="176" width="180" height="84" rx="10"/>
+  <text class="mono t" x="984" y="208">verify_cuts</text>
+  <text class="ui s" x="984" y="230">cut points, prop rules,</text>
+  <text class="ui s" x="984" y="249">direction lock</text>
+
+  <!-- flows -->
+  <g class="flow" marker-end="url(#a)">
+    <path d="M242 122 L268 122 L268 106 L286 106"/>
+    <path d="M242 138 L268 138 L268 194 L286 194"/>
+    <path d="M468 106 L512 106"/>
+    <path d="M242 246 L694 246"/>
+    <path d="M242 332 L676 332 L676 250"/>
+    <path d="M468 194 L694 194"/>
+    <path d="M700 218 L742 218"/>
+    <path d="M928 218 L958 218"/>
+  </g>
+  <path class="flow" d="M694 194 L700 194 L700 246" marker-end="none"/>
+  <path class="flow" d="M694 246 L700 246" marker-end="none"/>
+  <path class="flow" d="M676 250 L676 246" marker-end="none"/>
+
+  <!-- ok: approval releases the paid step -->
+  <path d="M616 134 L616 158 L700 158 L700 206" fill="none" stroke="#FF6B0F" stroke-width="2" marker-end="url(#ao)"/>
+  <text class="mono" x="626" y="152" font-size="16" fill="#FF6B0F">ok</text>
+
+  <!-- fail: loop back to the geometry, costs nothing -->
+  <path d="M616 78 L616 44 L149 44 L149 90" fill="none" stroke="#5A6169" stroke-width="2"
+        stroke-dasharray="6 5" marker-end="url(#a)"/>
+  <text class="mono lbl" x="330" y="36" font-size="16">not yet &#8212; change the geometry, costs nothing</text>
+
+  <!-- verify measures against the same shot table -->
+  <path d="M1054 260 L1054 378 L34 378 L34 130 L50 130" fill="none" stroke="#3F464D" stroke-width="2"
+        stroke-dasharray="6 5" marker-end="url(#a)"/>
+  <text class="mono lbl" x="380" y="370" font-size="16">measured against the SHOTS table &#8212; never against the prompt</text>
+</svg>

@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "drama": "渡口",
+  "defaultLens": 35,
+  "approxZoom": false,
+  "camPresets": null,
+  "scenes": {
+    "S01": {
+      "name": "渡船船舱",
+      "openAir": false,
+      "room": { "x0": -2.5, "x1": 2.5, "y0": 0, "y1": 7, "zc": 2.4, "panel": true },
+      "floor": null,
+      "setPieces": [],
+      "furniture": [
+        { "kind": "box", "tag": "长凳", "cx": 0, "cy": 5.5, "cz": 0.25, "sx": 3.0, "sy": 0.5, "sz": 0.5, "mat": "WOOD", "role": "furniture", "yaw": 0 },
+        { "kind": "box", "tag": "货箱", "cx": -1.5, "cy": 2.0, "cz": 0.4, "sx": 0.8, "sy": 0.8, "sz": 0.8, "mat": "WOOD", "role": "furniture", "yaw": 0 }
+      ],
+      "sceneAnchor": { "pos": [0, 3.5], "face": 0, "lookZ": 1.2 },
+      "anchors": {
+        "C01": { "pos": [0.4, 4.2], "face": 90, "pose": "stand_hold", "height": 1.64, "lead": true, "seatZ": null },
+        "C02": { "pos": [1.3, 5.0], "face": -90, "pose": "stand", "height": 1.8, "lead": false, "seatZ": null },
+        "C03": { "pos": [-1.4, 3.2], "face": 30, "pose": "stand", "height": 1.72, "lead": false, "seatZ": null },
+        "C04": { "pos": [-0.6, 5.8], "face": -90, "pose": "stand", "height": 1.75, "lead": false, "seatZ": null }
+      },
+      "props": {
+        "P01": { "hand": "C01:R", "pos": null, "fallback": [0.55, 3.9, 0.85], "offset": [0.05, -0.15, -0.3], "z": null, "shape": "box", "dims": [0.45, 0.28, 0.62], "mat": "PROP", "role": "prop", "name": "旧皮箱" }
+      }
+    },
+    "S02": {
+      "name": "渡口栈桥",
+      "openAir": true,
+      "room": null,
+      "floor": { "cx": 0, "cy": 2, "sx": 18, "sy": 8, "mat": "FLOOR" },
+      "setPieces": [
+        { "name": "栏杆", "cx": 0, "cy": 5, "cz": 0.55, "sx": 14, "sy": 0.1, "sz": 1.1, "mat": "WOOD", "role": "shell", "yaw": 0 }
+      ],
+      "furniture": [],
+      "sceneAnchor": { "pos": [0, 2.5], "face": 0, "lookZ": 1.2 },
+      "anchors": {
+        "C01": { "pos": [0, 2.2], "face": 90, "pose": "walk_bag_r", "height": 1.64, "lead": true, "seatZ": null },
+        "C03": { "pos": [-1.6, 1.2], "face": 45, "pose": "stand", "height": 1.72, "lead": false, "seatZ": null },
+        "C04": { "pos": [1.4, 3.0], "face": -100, "pose": "stand", "height": 1.75, "lead": false, "seatZ": null }
+      },
+      "props": {
+        "P01": { "hand": "C01:R", "pos": null, "fallback": [0.5, 2.1, 0.8], "offset": [0.05, -0.15, -0.3], "z": null, "shape": "box", "dims": [0.45, 0.28, 0.62], "mat": "PROP", "role": "prop", "name": "旧皮箱" }
+      }
+    }
+  },
+  "missing": []
+}

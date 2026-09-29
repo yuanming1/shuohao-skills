@@ -16,7 +16,7 @@ description: 将 AI 短剧的 storyboard.json、script.json、art.json 与 cast.
 - `art.json`：用于生成场景/道具参考节点及其连线。
 - `cast.json`：用于生成角色主参考和独立多视角节点。
 
-可选 `images` 目录只放已确认可用的写实场景、道具图片。脚本只嵌入能够对应 `art.json` 场景/道具的图片；不会自动打包未知图片或人物来源图，防止漫画、插画等不合格参考混入画布。
+可选 `images` 目录放已确认可用的场景、道具图片，写实与动画风格均可。脚本只嵌入能够对应 `art.json` 场景/道具的图片；不会自动打包未知图片或人物来源图。
 
 ## 导出
 
@@ -26,7 +26,7 @@ node {baseDir}/scripts/export-infinite-canvas.mjs export \
   --script <剧名>-script.json \
   --art <剧名>-art.json \
   --cast <剧名>-cast.json \
-  --images <写实场景与道具图片目录> \
+  --images <场景与道具图片目录> \
   --out <输出目录>/<剧名>-分镜画布.zip \
   --title "<剧名> · 分镜投产画布"
 ```
@@ -49,7 +49,7 @@ node {baseDir}/scripts/export-infinite-canvas.mjs export \
 - 场景、角色、道具的一致性通过画布连线传递。场景映射必须是 `segment.sceneIndex -> script scene.sceneId -> art scene.id`，不得用数组位置猜测。
 - 每个分段同时创建 H3 提示词/视频节点和豆包 Seedance 提示词/视频节点；两类视频节点连接同一批关键帧。
 - `blocking` 仅进入豆包提示词的 `【人物关系与构图逻辑】`。它用于跨镜空间连续性，不是关键帧出图提示词。
-- 每个角色创建一张正面全身主参考与 8 张独立多视角/局部锚点节点。人物图不做拼接大图；先生成主参考，再沿连线生成视图。
+- 每个角色创建一张正面全身主参考与 8 张独立多视角/局部锚点节点。人物图不做拼接大图；先生成主参考，再沿连线生成视图。关键帧始终连接角色主参考；导出器根据切镜的景别、构图、焦点和画面描述，额外连接匹配的正面、侧面、背面或服装局部视图。
 - 手机等独立道具保持在道具节点中；角色主参考不会把英文 `phone`、`smartphone`、`mobile` 或 `black rectangular slab` 识别锚点带入画面。
 
 导入画布后，在应用配置中选择对应视频通道：H3 节点使用 H3 通道，`豆包 Seedance 视频` 节点使用豆包通道。

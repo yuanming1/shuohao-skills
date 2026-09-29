@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" width="1200" height="520" role="img" aria-labelledby="title desc">
+  <title id="title">How an agent drives Blender</title>
+  <desc id="desc">A hand-drawn closed loop showing an agent splitting script facts, writing scene.py, rendering headlessly, using BlenderMCP live, and always writing changes back to scene.py.</desc>
+  <style>
+    .bg{fill:#0E1012}.card{fill:none;stroke:#C9CDD2;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}.echo{fill:none;stroke:#C9CDD2;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;opacity:.4}.line{fill:none;stroke:#C9CDD2;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}.orange{stroke:#FF6B0F}.blue{stroke:#337AEB}.t{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;fill:#E9EAEB}.muted{fill:#8B9198}.o{fill:#FF6B0F}.b{fill:#337AEB}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  </style>
+  <path class="bg" d="M0 0 L1200 0 L1200 520 L0 520 Z"/>
+  <text class="t" x="48" y="62" font-size="42" font-weight="700">How an agent drives Blender</text>
+
+  <!-- script reader with fork -->
+  <path class="card orange" d="M35 101 L128 99 L231 102 L325 99 M330 104 L332 151 L330 198 L333 239 M328 244 L228 242 L126 246 L33 247 M28 242 L30 196 L28 151 L30 106"/><path class="echo orange" d="M38 104 L131 102 L228 105 L322 102 M327 107 L329 154 L327 195 L330 236 M325 241 L225 239 L129 243 L36 244 M32 239 L34 193 L32 154 L34 109"/>
+  <text class="t o" x="179" y="139" text-anchor="middle" font-size="24" font-weight="750">AGENT reads the script</text>
+  <path class="line" d="M178 154 L180 169 L177 188 M177 188 L151 190 L128 201 L105 214 M180 188 L207 186 L230 199 L253 213"/><path class="echo" d="M181 155 L183 170 L180 190 M180 190 L153 193 L130 204 L107 217 M183 190 L209 189 L232 202 L255 216"/>
+  <text class="t" x="101" y="230" text-anchor="middle" font-size="21"><tspan x="101">space</tspan><tspan x="101" dy="25">facts</tspan></text>
+  <text class="t" x="258" y="230" text-anchor="middle" font-size="21"><tspan x="258">performance</tspan><tspan x="258" dy="25">facts</tspan></text>
+
+  <!-- scene source -->
+  <path class="card" d="M369 100 L448 102 L526 99 L602 102 M607 107 L605 151 L608 198 L605 238 M600 243 L520 241 L443 244 L367 241 M362 236 L364 193 L362 149 L364 105"/><path class="echo" d="M372 103 L451 105 L523 102 L599 105 M604 110 L602 154 L605 195 L602 235 M597 240 L517 238 L446 241 L370 238 M366 233 L368 190 L366 152 L368 108"/>
+  <text class="t" x="485" y="153" text-anchor="middle" font-size="23" font-weight="650">AGENT writes</text>
+  <text class="t mono" x="485" y="198" text-anchor="middle" font-size="28" font-weight="750">scene.py</text>
+
+  <!-- deterministic render -->
+  <path class="card blue" d="M665 101 L826 99 L989 102 L1149 99 M1154 104 L1156 150 L1154 197 L1157 236 M1152 241 L987 239 L823 243 L663 244 M658 239 L660 194 L658 149 L660 106"/><path class="echo blue" d="M668 104 L829 102 L986 105 L1146 102 M1151 107 L1153 153 L1151 194 L1154 233 M1149 238 L984 236 L826 240 L666 241 M662 236 L664 191 L662 152 L664 109"/>
+  <text class="t b" x="907" y="143" text-anchor="middle" font-size="24" font-weight="750">headless render</text>
+  <text class="t mono" x="907" y="180" text-anchor="middle" font-size="21">blender -b --python scene.py</text>
+  <text class="t muted" x="907" y="216" text-anchor="middle" font-size="18">deterministic, no GUI, CI-able</text>
+
+  <!-- upper arrows -->
+  <g class="line">
+    <path d="M333 171 L342 169 L359 170 M352 163 L361 170 L352 178"/>
+    <path d="M609 171 C624 169 642 172 655 170 M648 163 L657 170 M648 178 L657 170"/>
+  </g>
+  <g class="echo"><path d="M334 174 L343 172 L358 173 M351 166 L361 173 L351 181"/><path d="M610 174 L625 172 L643 175 L654 173 M647 166 L657 173 L647 181"/></g>
+
+  <!-- live session -->
+  <path class="card orange" d="M664 286 L826 283 L992 287 L1151 283 M1156 288 L1154 327 L1157 365 L1154 404 M1149 409 L986 407 L821 411 L662 412 M657 407 L659 368 L657 328 L659 291"/><path class="echo orange" d="M667 289 L829 286 L989 290 L1148 286 M1153 291 L1151 330 L1154 362 L1151 401 M1146 406 L983 404 L824 408 L665 409 M661 404 L663 365 L661 331 L663 294"/>
+  <text class="t o" x="690" y="319" font-size="24" font-weight="750">BlenderMCP live session</text>
+  <text class="t mono" x="690" y="351" font-size="18">localhost:9876</text>
+  <text class="t mono" x="690" y="375" font-size="18">execute_code · get_viewport_screenshot</text>
+  <text class="t o" x="690" y="401" font-size="21" font-weight="700">cannot run under blender -b</text>
+  <path class="line" d="M1128 244 L1135 255 L1137 267 L1128 280 M1121 271 L1128 282 L1137 273"/><path class="echo" d="M1131 244 L1138 255 L1140 268 L1131 283 M1124 274 L1131 285 L1140 276"/>
+
+  <!-- emphasized write-back loop -->
+  <path class="line orange" stroke-width="3.2" d="M657 350 L635 348 L617 338 L608 322 L607 292 L586 274 L548 263 L510 253 L485 245"/>
+  <path class="line orange" stroke-width="3.2" d="M495 241 L483 245 L490 256"/>
+  <path class="echo orange" d="M657 353 L633 351 L614 341 L605 325 L604 295 L583 277 L545 266 L507 256 L482 248 M492 244 L480 248 L487 259"/>
+  <path class="card orange" d="M55 421 L320 419 L588 422 L857 419 L1120 418 M1125 423 L1127 454 L1128 485 M1123 490 L854 488 L585 491 L316 489 L52 493 M47 488 L49 458 L47 426"/><path class="echo orange" d="M58 424 L323 422 L585 425 L860 422 L1117 421 M1122 426 L1124 457 L1125 482 M1120 487 L851 485 L588 488 L313 486 L55 490 M51 485 L53 455 L51 429"/>
+  <text class="t o" x="588" y="464" text-anchor="middle" font-size="24" font-weight="800">always write back to scene.py — the live session is not the source of truth</text>
+</svg>

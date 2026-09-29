@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.DS_Store
+*.blend
+*.blend1
+
+# 你自己的场景和渲染输出
+/scenes/
+/render/
+
+# 自己的资产图和成片别提交 —— 多半是第三方版权素材
+/refs/
+/private-assets/
+
+# hero 的中间产物
+assets/readme/source/_render.html

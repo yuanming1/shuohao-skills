@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 460" width="1400" height="460" role="img" aria-labelledby="title desc">
+  <title id="title">How one scene gets made</title>
+  <desc id="desc">An eight-step hand-drawn workflow from script through greybox confirmation, generation, and shot-table verification, with no-cost revision loops.</desc>
+  <style>
+    .bg{fill:#0E1012}.card,.echo,.line,.faint,.dash{fill:none;stroke:#C9CDD2;stroke-linecap:round;stroke-linejoin:round}.card,.line{stroke-width:2.4}.echo,.faint{stroke-width:1.6;opacity:.4}.dash{stroke:#8B9198;stroke-width:2.2;stroke-dasharray:8 9}.orange{stroke:#FF6B0F}.blue{stroke:#337AEB}.t{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;fill:#E9EAEB}.muted{fill:#8B9198}.accentO{fill:#FF6B0F}.accentB{fill:#337AEB}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  </style>
+  <path class="bg" d="M0 0 L1400 0 L1400 460 L0 460 Z"/>
+  <text class="t" x="48" y="62" font-size="42" font-weight="700">How one scene gets made</text>
+  <g>
+    <g class="card"><path d="M42 114 L86 111 L139 113 M145 113 L164 111 L166 157 L164 225 M161 231 L111 229 L46 232 M40 228 L42 181 L40 118"/></g><path class="echo" d="M45 117 L91 114 L136 116 M143 116 L161 114 L163 160 L161 221 M158 227 L108 226 L49 229 M44 225 L45 177 L43 121"/>
+    <text class="t" x="103" y="174" text-anchor="middle" font-size="22" font-weight="650">script</text>
+    <path class="card" d="M193 112 L241 114 L293 111 M299 113 L321 115 L319 163 L321 226 M317 231 L264 229 L197 231 M191 226 L193 180 L191 117"/><path class="echo" d="M196 115 L245 117 L290 114 M297 116 L318 118 L316 166 L318 223 M314 228 L261 226 L200 228 M195 223 L196 177 L194 120"/>
+    <text class="t" x="256" y="164" text-anchor="middle" font-size="21"><tspan x="256">intent</tspan><tspan x="256" dy="28">split</tspan></text>
+    <path class="card" d="M348 115 L402 112 L456 114 M462 112 L480 114 L478 161 L481 227 M477 232 L424 230 L352 232 M346 227 L349 178 L346 119"/><path class="echo" d="M351 118 L406 115 L453 117 M460 115 L477 117 L475 164 L478 224 M474 229 L421 227 L355 229 M350 224 L352 175 L349 122"/>
+    <text class="t" x="414" y="151" text-anchor="middle" font-size="21"><tspan x="414">build</tspan><tspan x="414" dy="27">greybox</tspan><tspan class="mono muted" x="414" dy="27">scene.py</tspan></text>
+    <path class="card" d="M508 112 L557 115 L613 112 M619 114 L637 113 L639 164 L637 225 M633 231 L577 229 L512 232 M506 227 L509 180 L506 117"/><path class="echo" d="M511 115 L560 118 L610 115 M617 117 L634 116 L636 167 L634 222 M630 228 L574 226 L515 229 M510 224 L512 177 L509 120"/>
+    <text class="t" x="573" y="158" text-anchor="middle" font-size="21"><tspan x="573">dual-pass</tspan><tspan x="573" dy="28">render</tspan></text>
+    <path class="card orange" d="M665 114 L718 111 L770 113 M776 112 L796 115 L794 161 L796 226 M792 231 L738 229 L669 231 M663 227 L666 177 L663 119"/><path class="echo orange" d="M668 117 L722 114 L767 116 M774 115 L793 118 L791 164 L793 223 M789 228 L735 226 L672 228 M667 224 L669 174 L666 122"/>
+    <path class="line orange" d="M681 128 L679 167 L681 213 M778 126 L780 169 L777 215 M681 140 L729 137 L778 139 M682 204 L730 207 L777 203"/><path class="faint orange" d="M684 130 L682 169 L684 211 M775 129 L777 171 L774 212 M684 143 L730 140 L775 142 M685 201 L731 204 L774 200"/>
+    <text class="t accentO" x="729" y="164" text-anchor="middle" font-size="19" font-weight="750"><tspan x="730">HUMAN</tspan><tspan x="730" dy="28">CONFIRMS</tspan></text>
+    <path class="card" d="M824 112 L875 114 L930 111 M936 113 L955 115 L953 163 L955 227 M951 232 L898 229 L828 232 M822 227 L825 179 L822 117"/><path class="echo" d="M827 115 L879 117 L927 114 M934 116 L952 118 L950 166 L952 224 M948 229 L895 226 L831 229 M826 224 L828 176 L825 120"/>
+    <text class="t" x="889" y="147" text-anchor="middle" font-size="21"><tspan x="889">write prompt</tspan><tspan x="889" dy="27">+ attach</tspan><tspan x="889" dy="27">stills</tspan></text>
+    <path class="card blue" d="M982 114 L1034 111 L1088 114 M1094 112 L1113 115 L1111 163 L1113 226 M1109 231 L1055 229 L986 231 M980 226 L983 178 L980 119"/><path class="echo blue" d="M985 117 L1038 114 L1085 117 M1092 115 L1110 118 L1108 166 L1110 223 M1106 228 L1052 226 L989 228 M984 223 L986 175 L983 122"/>
+    <text class="t accentB" x="1047" y="157" text-anchor="middle" font-size="22" font-weight="700">generate</text><text class="t muted" x="1047" y="190" text-anchor="middle" font-size="18">the paid step</text>
+    <path class="card" d="M1141 112 L1200 115 L1270 111 M1276 113 L1356 115 L1354 164 L1357 227 M1353 232 L1261 229 L1145 232 M1139 227 L1142 178 L1139 117"/><path class="echo" d="M1144 115 L1204 118 L1267 114 M1274 116 L1353 118 L1351 167 L1354 224 M1350 229 L1258 226 L1148 229 M1143 224 L1145 175 L1142 120"/>
+    <text class="t" x="1248" y="145" text-anchor="middle" font-size="21"><tspan x="1248">verify against</tspan><tspan x="1248" dy="27">the shot</tspan><tspan x="1248" dy="27">table</tspan></text>
+  </g>
+  <g class="line"><path d="M168 169 L176 167 L187 170 M180 163 L190 170 L180 177"/><path d="M323 169 L331 171 L343 169 M336 162 L346 169 L336 176"/><path d="M482 169 L492 167 L503 170 M496 163 L506 170 L496 177"/><path d="M641 169 L650 171 L659 169 M653 162 L662 169 L653 176"/><path d="M798 169 L808 167 L819 170 M812 163 L822 170 L812 177"/><path d="M957 169 L966 171 L977 169 M970 162 L980 169 L970 176"/><path d="M1115 169 L1124 167 L1135 170 M1128 163 L1138 170 L1128 177"/></g>
+  <g class="faint"><path d="M169 172 L177 170 L186 173 M179 166 L189 173 L179 180"/><path d="M324 172 L332 174 L342 172 M335 165 L345 172 L335 179"/><path d="M483 172 L493 170 L502 173 M495 166 L505 173 L495 180"/><path d="M642 172 L651 174 L658 172 M652 165 L661 172 L652 179"/><path d="M799 172 L809 170 L818 173 M811 166 L821 173 L811 180"/><path d="M958 172 L967 174 L976 172 M969 165 L979 172 L969 179"/><path d="M1116 172 L1125 170 L1134 173 M1127 166 L1137 173 L1127 180"/></g>
+  <path class="dash orange" d="M730 235 C731 271 696 292 642 290 L472 293 C435 291 420 273 427 238"/><path class="dash orange" opacity=".4" d="M733 237 C734 274 699 295 644 293 L474 296 C438 294 423 276 430 240"/><path class="line orange" d="M420 247 L427 237 L434 247"/><path class="faint orange" d="M423 250 L430 240 L437 250"/>
+  <text class="t accentO" x="575" y="286" text-anchor="middle" font-size="18" font-weight="650">costs nothing</text>
+  <path class="dash" d="M1248 236 C1251 335 1177 379 1066 377 L505 380 C445 378 418 347 428 239"/><path class="dash" opacity=".4" d="M1251 238 C1254 338 1180 382 1068 380 L507 383 C448 381 421 350 431 241"/><path class="line" d="M421 248 L428 237 L435 247"/><path class="faint" d="M424 251 L431 240 L438 250"/>
+  <text class="t muted" x="826" y="368" text-anchor="middle" font-size="18">measured against SHOTS, never the prompt</text>
+</svg>

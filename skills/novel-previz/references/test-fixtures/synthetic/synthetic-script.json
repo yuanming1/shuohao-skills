@@ -1,0 +1,35 @@
+{
+  "source": "合成夹具",
+  "params": { "charsPerSecond": 4.5, "actionSeconds": 2.5, "tolerance": 0.15, "maxLineChars": 35 },
+  "episodes": [
+    {
+      "ep": 1,
+      "targetSeconds": 55,
+      "hook": "钩子",
+      "cliff": "悬念",
+      "beatsClaimed": [],
+      "scenes": [
+        {
+          "sceneId": "SY1",
+          "lighting": "白天",
+          "characters": ["K01", "K02"],
+          "props": ["Q01"],
+          "flow": [
+            { "action": "甲走到工作台前停下" },
+            { "speaker": "K01", "line": "东西呢？" },
+            { "action": "乙把对讲机递过去" }
+          ]
+        },
+        {
+          "sceneId": "SY2",
+          "lighting": "黄昏",
+          "characters": ["K01"],
+          "props": ["Q02"],
+          "flow": [
+            { "action": "甲在空地上停下回头" }
+          ]
+        }
+      ]
+    }
+  ]
+}

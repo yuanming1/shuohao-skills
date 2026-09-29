@@ -1,0 +1,102 @@
+{
+  "source": "失物窗口（预演分析最小夹具）",
+  "episodes": [
+    {
+      "ep": 1,
+      "segments": [
+        {
+          "id": "E01-01",
+          "sceneIndex": 1,
+          "cuts": [
+            {
+              "seconds": 3,
+              "size": "medium",
+              "camera": "Static Shot",
+              "characters": [
+                "C01"
+              ],
+              "frame": "中景，值班员安静整理失物窗口。"
+            }
+          ]
+        },
+        {
+          "id": "E01-02",
+          "sceneIndex": 1,
+          "cuts": [
+            {
+              "seconds": 3,
+              "size": "medium",
+              "camera": "Static Shot",
+              "characters": [
+                "C02"
+              ],
+              "frame": "中景，陌生人在窗口外陈述围巾的颜色。"
+            },
+            {
+              "seconds": 4,
+              "size": "close",
+              "camera": "Static Shot",
+              "characters": [
+                "C01"
+              ],
+              "frame": "特写，值班员询问领取依据。"
+            }
+          ]
+        },
+        {
+          "id": "E01-03",
+          "sceneIndex": 1,
+          "cuts": [
+            {
+              "seconds": 3,
+              "size": "extreme-close",
+              "camera": "Static Shot",
+              "characters": [],
+              "frame": "大特写，凭条编号与登记本的数字并排清晰可读。"
+            }
+          ]
+        },
+        {
+          "id": "E01-04",
+          "sceneIndex": 1,
+          "cuts": [
+            {
+              "seconds": 4,
+              "size": "wide",
+              "camera": "Truck Right",
+              "characters": [
+                "C01",
+                "C02",
+                "C03"
+              ],
+              "frame": "全景，三人分处窗口内外，门框遮挡等候的孩子。"
+            }
+          ]
+        },
+        {
+          "id": "E01-05",
+          "sceneIndex": 1,
+          "cuts": [
+            {
+              "seconds": 4,
+              "size": "medium",
+              "camera": "Tracking Shot",
+              "characters": [
+                "C02",
+                "C03"
+              ],
+              "frame": "中景，陌生人绕过门框，将凭条递给孩子。"
+            },
+            {
+              "seconds": 3,
+              "size": "extreme-close",
+              "camera": "Static Shot",
+              "characters": [],
+              "frame": "大特写，孩子的原始凭条编号与登记本相符。"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

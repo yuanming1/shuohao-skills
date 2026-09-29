@@ -1,0 +1,27 @@
+A single flat image of a printed film production storyboard review sheet. This is a document, not a single movie frame.
+This is LOCKED STORYBOARD MODE: preserve the supplied shots, shot sizes, character states and timings. Do not rewrite the story, add action, reorder panels, or impose a new rhythm. Consecutive shots may have the same shot size.
+
+LAYOUT: exactly $panel_count valid panels in a strict $columns-column by $rows-row grid. All image areas have the same aspect ratio: $aspect. Use clean gutters and thin borders.
+$row_order
+$empty_cells
+Header: $title. Original duration: $duration seconds. Use a neutral light-grey board outside the panel images.
+
+No panel number, timecode, badge, caption, watermark or layout graphic inside any panel image. Source-story text specified in the storyboard or present in an optional reference image must stay unchanged; do not add layout text to the picture.
+Put each panel number, original shot ID, timecode range and shot size in the caption area BELOW that image. Include a short scene note based only on the corresponding source description.
+
+ORIGINAL TIMECODES (not equal-duration resampling):
+$timecodes
+Each panel represents the START of its original interval, not every state within that interval. Do not animate or complete its action inside a still panel.
+
+THE $panel_count PANELS, IN LOCKED ORDER:
+$panels
+
+OPTIONAL IMAGE REFERENCES:
+$references
+If reference files are listed, attach them to the image tool together with this prompt; filesystem paths in text do not upload images. Apply each shot-specific source frame only to its matching panel; do not copy it into other panels. Without an image for a panel, use its locked text description. Image references are optional; do not request missing images as a prerequisite or claim to have inspected them.
+
+CHARACTER AND PROP CONSISTENCY: preserve the identity, wardrobe, positions, held objects and environment specified in the storyboard descriptions and any available references. Keep recurring characters and props visually consistent without changing their described state or ownership; preserve intentional costume changes. For text-only panels, keep unspecified appearance choices consistent across the sheet, but do not present them as verified asset designs. If descriptions and references conflict, flag the discrepancy instead of silently rewriting the story.
+
+INSIDE EACH PANEL: follow the locked shot size, start-state description and any supplied project style. Where an image reference is available, preserve its established technique, lighting, palette and framing. Without images or a specified style, use one coherent visual treatment across the sheet; do not claim a match to unseen images. Do not mix media, crop away described details, or force narrative escalation.
+
+Render the COMPLETE review sheet, not new standalone keyframes: $panel_count valid panels, $columns columns, $rows rows. Do not merge panels, repeat frames to fill empty cells, fabricate extra shots, or draw one large cinematic picture. This is an image-review deliverable, not proof that video continuity has been validated.

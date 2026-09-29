@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "drama": "合成夹具(部分——只配了 SY1,SY2 缺项走 .todo)",
+  "defaultLens": 35,
+  "approxZoom": false,
+  "camPresets": null,
+  "scenes": {
+    "SY1": {
+      "name": "室内工坊",
+      "openAir": false,
+      "room": { "x0": -6, "x1": 6, "y0": 0, "y1": 8, "zc": 3.0, "panel": true },
+      "floor": null,
+      "setPieces": [],
+      "furniture": [
+        { "kind": "desk", "tag": "工作台", "x": 0, "y": 4, "w": 1.55, "d": 0.72, "yaw": 0, "top": 0.74, "thick": 0.04 }
+      ],
+      "sceneAnchor": { "pos": [0, 4], "face": 0, "lookZ": 1.2 },
+      "anchors": {
+        "K01": { "pos": [0, 2.6], "face": 90, "pose": "stand", "height": 1.66, "lead": true, "seatZ": null },
+        "K02": { "pos": [1.2, 3.1], "face": -90, "pose": "stand_hold", "height": 1.7, "lead": false, "seatZ": null }
+      },
+      "props": {
+        "Q01": { "hand": "K01:R", "pos": null, "fallback": [0.3, 2.5, 1.1], "offset": [0, 0, 0.03], "z": null, "shape": "box", "dims": [0.075, 0.15, 0.012], "mat": "PROP", "role": "prop", "name": "对讲机" }
+      }
+    },
+    "SY2": {
+      "name": "外景空地",
+      "openAir": true,
+      "room": null,
+      "floor": null,
+      "setPieces": [],
+      "furniture": [],
+      "sceneAnchor": null,
+      "anchors": {
+        "K01": { "pos": null, "face": null, "pose": null, "height": null, "lead": null, "seatZ": null }
+      },
+      "props": {
+        "Q02": { "hand": null, "pos": null, "fallback": null, "offset": null, "z": null, "shape": null, "dims": null, "mat": null, "role": null, "name": "石凳" }
+      }
+    }
+  },
+  "missing": [
+    { "scene": "SY2", "item": "scenes.SY2.floor", "field": "floor", "reason": "外景需要地面(部分夹具故意留空)" },
+    { "scene": "SY2", "item": "scenes.SY2.anchors.K01", "field": "pos/face", "reason": "站位未填(部分夹具故意留空)" },
+    { "scene": "SY2", "item": "scenes.SY2.props.Q02", "field": "hand|pos", "reason": "挂接未填(部分夹具故意留空)" }
+  ]
+}

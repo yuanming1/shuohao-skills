@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "drama": "合成夹具",
+  "defaultLens": 35,
+  "approxZoom": false,
+  "camPresets": null,
+  "scenes": {
+    "SY1": {
+      "name": "室内工坊",
+      "openAir": false,
+      "room": { "x0": -6, "x1": 6, "y0": 0, "y1": 8, "zc": 3.0, "panel": true },
+      "floor": null,
+      "setPieces": [],
+      "furniture": [
+        { "kind": "desk", "tag": "工作台", "x": 0, "y": 4, "w": 1.55, "d": 0.72, "yaw": 0, "top": 0.74, "thick": 0.04 },
+        { "kind": "chair", "tag": "工椅", "x": 0, "y": 3.2, "face": 0, "seat": 0.46, "w": 0.48 },
+        { "kind": "monitor", "tag": "屏", "x": 0, "y": 4.3, "yaw": 0, "w": 0.52, "h": 0.32, "deskz": 0.74 },
+        { "kind": "window", "wallX": 3, "y0": -1, "y1": 1, "sill": 0.9, "head": 2.4, "zc": 3.0, "mullions": [0], "depth_axis": "x" },
+        { "kind": "box", "tag": "柜", "cx": -3, "cy": 6, "cz": 0.5, "sx": 1, "sy": 0.5, "sz": 1, "mat": "WOOD", "role": "furniture", "yaw": 0 },
+        { "kind": "cyl", "tag": "柱", "cx": 2, "cy": 2, "cz": 0.5, "r": 0.15, "h": 1, "mat": "DARK", "role": "furniture" }
+      ],
+      "sceneAnchor": { "pos": [0, 4], "face": 0, "lookZ": 1.2 },
+      "anchors": {
+        "K01": { "pos": [0, 2.6], "face": 90, "pose": "stand", "height": 1.66, "lead": true, "seatZ": null },
+        "K02": { "pos": [1.2, 3.1], "face": -90, "pose": "stand_hold", "height": 1.7, "lead": false, "seatZ": null }
+      },
+      "props": {
+        "Q01": { "hand": "K01:R", "pos": null, "fallback": [0.3, 2.5, 1.1], "offset": [0, 0, 0.03], "z": null, "shape": "box", "dims": [0.075, 0.15, 0.012], "mat": "PROP", "role": "prop", "name": "对讲机" }
+      }
+    },
+    "SY2": {
+      "name": "外景空地",
+      "openAir": true,
+      "room": null,
+      "floor": { "cx": 0, "cy": 2, "sx": 20, "sy": 8, "mat": "FLOOR" },
+      "setPieces": [
+        { "name": "立面", "cx": 0, "cy": 6, "cz": 1.7, "sx": 12, "sy": 0.12, "sz": 3.4, "mat": "WALL", "role": "shell", "yaw": 0 }
+      ],
+      "furniture": [],
+      "sceneAnchor": { "pos": [0, 2], "face": 0, "lookZ": 1.2 },
+      "anchors": {
+        "K01": { "pos": [-1, 2], "face": 90, "pose": "walk_r", "height": 1.66, "lead": true, "seatZ": null }
+      },
+      "props": {
+        "Q02": { "hand": null, "pos": [1.5, 3], "fallback": null, "offset": null, "z": "floor", "shape": "box", "dims": [0.5, 0.5, 0.45], "mat": "WOOD", "role": "prop", "name": "石凳" }
+      }
+    }
+  },
+  "missing": []
+}
