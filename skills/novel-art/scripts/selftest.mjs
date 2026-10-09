@@ -15,6 +15,7 @@ import {
   renderMarkdown,
   seedFromOutline,
   slug,
+  PALETTE_COLOR_RANGE,
   PROP_SCALES,
   validateArt,
 } from './novel-art.mjs';
@@ -131,7 +132,7 @@ ok(castNamesOf({ characters: [] }).length === 0, '空 cast 不炸');
 
 eq(validateArt(FIXTURE, NAMES).length, 0, '自带样例通过校验（含角色名检查）');
 ok(gateReport(FIXTURE, NAMES).every((g) => g.ok), '样例全部质量门通过');
-eq(gateReport(FIXTURE).length, 10, '质量门共 10 道（场景 6 + 道具 4）');
+eq(gateReport(FIXTURE).length, 12, '质量门共 12 道（场景 6 + 道具 4 + 色卡 2）');
 
 /* ---------------- 质量门逐项击穿 ---------------- */
 // 每一道门都要证明它真的会拦——不然就是永远为真的假测试
@@ -298,7 +299,7 @@ ok(/e\.key === 'Escape'/.test(html), 'Esc 关闭弹层');
   ok(withImg.includes('class="zoom" data-src="images/x-sheet.png"'), '出图后图片可点，弹层拿到地址');
   ok(withImg.includes('cursor:zoom-in'), '鼠标提示可放大');
 }
-eq((html.match(/<li class="ok">/g) || []).length, 10, '10 道质量门全 ✓');
+eq((html.match(/<li class="ok">/g) || []).length, 12, '12 道质量门全 ✓');
 ok(html.includes('gatepill pass'), '页眉徽章通过态');
 ok(html.includes('未提供 cast.json'), '报告如实标注角色名检查被跳过');
 
@@ -436,6 +437,86 @@ eq(FIXTURE.props.length, 2, '样例带两件叙事道具');
   ok(html.includes('>P01<') || html.includes('P01'), 'HTML 道具卡有 ID');
   ok(html.includes('手持级'), 'HTML 道具卡带尺度徽章');
   ok(html.includes('关联场景：<b>S01</b>'), 'HTML 道具卡带关联场景');
+}
+
+/* ---------------- 色卡（全局色调层，可选）---------------- */
+
+eq(PALETTE_COLOR_RANGE.join('-'), '4-8', '色数范围 4–8');
+eq(FIXTURE.palette.colors.length, 6, '样例色卡 6 色');
+
+// 两道门逐项击穿——不然就是永远为真的假测试
+{
+  const d = clone();
+  d.palette.colors = d.palette.colors.slice(0, 3);
+  ok(!gate(d, 'palette-data').ok, '色卡只有 3 色被拦——撑不起一部剧的色调统一');
+}
+{
+  const d = clone();
+  d.palette.colors[0].hex = '#E9E7E';
+  ok(!gate(d, 'palette-data').ok, 'hex 少一位被拦');
+  ok(gate(d, 'palette-data').detail.includes('雾白'), '报错点名是哪个颜色');
+}
+{
+  const d = clone();
+  d.palette.materials = [];
+  ok(!gate(d, 'palette-data').ok, '材质 DNA 为空被拦');
+}
+{
+  const d = clone();
+  d.palette.sheet = d.palette.sheet.replace('#4E7A63', '#4e7a63');
+  ok(!gate(d, 'palette-sheet').ok, 'sheet 里的 hex 大小写漂了被拦——和 sheet 逐字对账');
+  ok(gate(d, 'palette-sheet').detail.includes('#4E7A63'), '报错点名缺哪个 hex');
+}
+{
+  const d = clone();
+  d.palette.sheet += ' 底色如雾';
+  ok(!gate(d, 'palette-sheet').ok, 'sheet 写中文被拦');
+}
+{
+  const d = clone();
+  d.palette.sheet += ' where 老周 stands';
+  ok(!gate(d, 'no-names', NAMES).ok, '色卡 sheet 出现角色名被拦');
+}
+// 没有色卡：两道门明说跳过，文档仍合法
+{
+  const d = clone();
+  delete d.palette;
+  eq(validateArt(d, NAMES).length, 0, '没有色卡块也合法——色卡是可选层');
+  ok(gateReport(d).filter((g) => g.id.startsWith('palette-')).every((g) => g.ok), '无色卡时两道色卡门放行');
+  ok(gate(d, 'palette-data').detail.includes('跳过'), '跳过时明说，不装作查过');
+  ok(!renderHtml(d).includes('>全局色卡与材质 DNA<'), '无色卡时报告不渲染色卡区块');
+  ok(!renderMarkdown(d).includes('## 全局色卡与材质 DNA'), 'MD 无色卡时也不渲染');
+}
+// 结构检查
+{
+  const d = clone();
+  d.palette.title = ' ';
+  ok(validateArt(d).some((x) => x.includes('palette 缺 title')), '色卡缺标题被拦');
+}
+{
+  const d = clone();
+  delete d.palette.colors[2].role;
+  ok(validateArt(d).some((x) => x.includes('role')), '颜色缺 role（这一色管什么）被拦');
+}
+{
+  const d = clone();
+  d.palette.lighting = '雾中散射光';
+  ok(validateArt(d).some((x) => x.includes('palette.lighting')), '光照 DNA 不是数组被拦');
+}
+// 渲染
+{
+  ok(md.indexOf('## 全局色卡与材质 DNA') > -1, 'MD 有色卡区块');
+  ok(md.includes('#E9E7E0'), 'MD 色卡表带 hex');
+  ok(md.includes('### 材质 DNA') && md.includes('### 光照 DNA'), 'MD 有两段 DNA');
+  ok(md.indexOf('## 全局色卡与材质 DNA') < md.indexOf('## 场景清单'), 'MD 色卡在场景清单前——全局层在最前');
+  ok(html.includes('>全局色卡与材质 DNA<'), 'HTML 有色卡区块');
+  ok(html.includes('style="background:#4E7A63"'), 'HTML 色块真用 hex 上色');
+  ok(html.includes('id="sec-palette"'), '色卡区块有锚点 id');
+  ok(html.indexOf('id="sec-palette"') < html.indexOf('id="sec-list"'), 'HTML 色卡区块排在场景清单前');
+  ok(renderHtml(FIXTURE, 'en').includes('>Global palette &amp; material DNA<'), 'EN 报告有色卡区块');
+  const d = clone();
+  d.palette.sheetImage = 'images/palette-sheet.png';
+  ok(renderHtml(d).includes('data-src="images/palette-sheet.png"'), '色卡图也能点开放大');
 }
 
 /* ---------------- render 英文界面（--lang en）---------------- */

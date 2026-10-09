@@ -139,6 +139,14 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
         propReference.set(prop.id, [...stateNodes, sheet.id]);
     }
 
+    // 全局色卡（可选）：一部剧一个色调规范。色调靠参考图连线传递——
+    // 色卡连到每一张关键帧，而不是把色卡文案追加进关键帧提示词。
+    let paletteNodeId = null;
+    if (art.palette?.sheet) {
+        const position = assetPosition();
+        paletteNodeId = makeImageNode({ title: "色卡 · 全局色调与材质 DNA", x: position.x, y: position.y, prompt: art.palette.sheet, imageFile: findImage(imageFiles, "palette-sheet") }).id;
+    }
+
     const characterReference = new Map();
     const characterStartX = 3400;
     for (let index = 0; index < cast.characters.length; index += 1) {
@@ -213,6 +221,7 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
                 const sceneAsset = sceneReference.get(scriptScene.sceneId);
                 const sceneNodeId = sceneAsset?.lightingNodes.get(scriptScene.lighting) || sceneAsset?.sheetId;
                 if (sceneNodeId) addConnection(sceneNodeId, frame.id);
+                if (paletteNodeId) addConnection(paletteNodeId, frame.id);
                 const characterIds = new Set(Array.isArray(cut.characters) ? cut.characters : (scriptScene.characters || []));
                 for (const characterId of characterIds) {
                     if (characterId === "VO") continue;
@@ -401,7 +410,7 @@ function validateCanvas(args) {
     if (seedance.some((node) => !node.metadata?.prompt?.includes("【镜头1】") || !node.metadata?.prompt?.includes("【约束】"))) fail("存在不完整的豆包 Seedance 提示词。");
     if (keyframes.some((node) => /场景一致性锚点|光照状态：|保持已连接的写实场景/.test(node.metadata?.prompt || ""))) fail("关键帧中混入了不应追加的场景说明。");
     const connectedNodeIds = new Set(project.connections.flatMap((connection) => [connection.fromNodeId, connection.toNodeId]));
-    const unlinkedReferences = nodes.filter((node) => node.type === "image" && /^(场景|道具|角色锚点|角色视图) ·/.test(node.title) && !connectedNodeIds.has(node.id));
+    const unlinkedReferences = nodes.filter((node) => node.type === "image" && /^(场景|道具|角色锚点|角色视图|色卡) ·/.test(node.title) && !connectedNodeIds.has(node.id));
     if (unlinkedReferences.length) fail(`存在 ${unlinkedReferences.length} 个未连线的参考图片节点：${unlinkedReferences.map((node) => node.title).join("、")}`);
     const files = manifest.projects.flatMap((item) => item.files || []);
     const missing = files.filter((file) => !entries.has(file.path));

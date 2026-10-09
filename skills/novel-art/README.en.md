@@ -10,13 +10,15 @@ Art bibles for **AI short-drama production**: scenes + narrative props. The prem
 
 **Props** (narrative props only — close-ups, cross-episode, plot-bearing; typically 3–8 per show): dramatic function first, **state variants** (a suitcase closed and open are two references), a **scale reference** written into every prompt (AI loves rendering a handheld prop at furniture size), and **white-background, no-hands plates** — prop references get composited into shots, and a hand holding the prop is the classic contamination. Set dressing stays in scene anchors; one-off hand props are handled at shot level — neither gets its own asset.
 
+**Global palette** (`palette`, optional block): one tone spec per show — 4–8 swatches (each with a role), material DNA and lighting DNA, plus a flat-design sheet prompt carrying every hex verbatim. Colors are aggregated from the scene tags and anchors, not invented; the palette travels as an attached reference downstream (novel-to-canvas wires it to every keyframe) instead of being pasted into prompts.
+
 Outputs `art.json`, a Markdown report, and a self-contained `art-report.html`. Reports render with a Chinese UI by default; pass `--lang en` for a fully English report (or set a top-level `"lang": "en"` in art.json — `--lang` wins). Image prompts are always English either way: In English mode the quality-gate labels are translated too (thresholds kept as computed); failing-gate details and all data stay as authored.
 
 ![art-report.html](assets/report.webp)
 
 ## The quality gates are code
 
-Same stance as the other two skills: **a checklist the model grades itself on is worthless.** Ten deterministic gates — anchors 3–5 (scenes and props alike), lighting states ≥1 per scene, people banned in negatives everywhere, all prompts English, no character names (checked with `--cast`, explicitly reported as skipped without it), variant references complete, plus four prop-specific gates: **states ≥1**, **scale phrase present in prompts**, **hands banned in negatives**, **pure white background in the sheet**. The selftest defeats every gate on purpose.
+Same stance as the other two skills: **a checklist the model grades itself on is worthless.** Twelve deterministic gates — anchors 3–5 (scenes and props alike), lighting states ≥1 per scene, people banned in negatives everywhere, all prompts English, no character names (checked with `--cast`, explicitly reported as skipped without it), variant references complete, plus four prop-specific gates: **states ≥1**, **scale phrase present in prompts**, **hands banned in negatives**, **pure white background in the sheet**; and two palette gates (checked only when `palette` is present, explicitly skipped otherwise): **data complete** (4–8 colors, valid hex, DNA present) and **sheet fully English with every hex included verbatim**. The selftest defeats every gate on purpose.
 
 ## The three-skill relay
 
@@ -56,6 +58,6 @@ Full spec in `references/sheet.md`.
 node scripts/selftest.mjs
 ```
 
-151 assertions — seeding, gate-defeating cases for all 10 gates, rendering (zh/en report UI), export. No model calls, runs in about a second.
+179 assertions — seeding, gate-defeating cases for all 12 gates, rendering (zh/en report UI), export. No model calls, runs in about a second.
 
 **Only tested on macOS + Node 24.**

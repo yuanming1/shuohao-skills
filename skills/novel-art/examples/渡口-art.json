@@ -1,5 +1,28 @@
 {
   "source": "渡口",
+  "palette": {
+    "title": "《渡口》全局色卡与材质 DNA",
+    "colors": [
+      { "name": "雾白", "hex": "#E9E7E0", "role": "空气底色：晨雾把整部戏泡在里面，所有日戏的背景亮度基准" },
+      { "name": "旧木褐", "hex": "#6E5137", "role": "船板、坐板、栈桥的主材色，磨白处提浅一档" },
+      { "name": "铜绿", "hex": "#4E7A63", "role": "船头铜铃与皮箱铜扣共用的氧化色，新划痕处露亮铜" },
+      { "name": "河青灰", "hex": "#7C8A8C", "role": "江面、倒影与湿木的反光色" },
+      { "name": "墨黑", "hex": "#2B2B28", "role": "旧砚与深夜戏的墨色，剪影的重色" },
+      { "name": "桐油黄", "hex": "#A98B4F", "role": "篷布与缆绳的暖色，夜戏灯下最暖的一档" }
+    ],
+    "materials": [
+      "包浆旧木——被手和水汽磨出的深色光泽，掉漆处露浅色木茬，淋湿后深一档",
+      "铜器绿锈——所有铜件共用一种氧化的青绿，新划痕处露亮铜色",
+      "吸水帆布——桐油篷布的哑光黄褐，补丁针脚粗大，湿处颜色加深",
+      "哑光石器——砚台与系缆石桩的灰黑，边角磨圆，墨渍渗进石理"
+    ],
+    "lighting": [
+      "雾中散射光——日戏基调：光从整片雾里来，无硬影，越近水面越亮",
+      "一点灯光——夜戏唯一光源：低色温黄光，照不远，雾里晕成一团",
+      "水面反光带——江面始终有一条比天空亮的水光，人物剪影衬在光带上"
+    ],
+    "sheet": "Flat-design color and material DNA reference board, 16:9 landscape, pure flat vector aesthetic with no photographic elements, solid neutral background - a production design bible sheet, not a story image. Title block, top left: 'DUKOU - Color & Material DNA'. COLOR SWATCHES row: six clean evenly aligned rectangles, each labelled with an English name, its hex code and its function: Fog White #E9E7E0 (air base, the fog every daytime scene sits in); Aged Timber Brown #6E5137 (worn planks of hull, benches and pier, paler where rubbed); Verdigris Green #4E7A63 (oxidized bronze shared by the ship bell and suitcase clasps, bright metal at fresh scratches); River Grey-Cyan #7C8A8C (water surface, reflections, wet wood); Ink Black #2B2B28 (inkstone and night scenes, silhouette weight); Oiled Canvas Tan #A98B4F (canopy and ropes, warmest note under the night lantern). MATERIAL DNA strip: aged wood with hand-polished dark patina, pale exposed grain where paint has flaked, darker where wet; bronze sharing one verdigris tone with bright metal showing at fresh scratches; matte oil-soaked canvas with coarse patch stitching, darkening when wet; honed stone in matte grey-black with rounded edges and ink soaked into the grain. LIGHTING DNA strip: fog-diffused daylight with no hard shadows, light arriving from the whole fog mass, brighter near the water; a single warm low-colour-temperature lantern point at night, carrying only a short distance and blooming inside the fog; a persistent band of water reflection brighter than the sky behind silhouetted figures. Typography: clean sans-serif, minimal, professional, readable. Constraints: avoid photographic rendering, texture depth, depth of field, lens blur, film grain, shadows, glossy finish, hand-painted look, watercolour, 3D render."
+  },
   "scenes": [
     {
       "id": "S01",

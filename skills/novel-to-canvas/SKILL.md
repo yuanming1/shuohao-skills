@@ -13,7 +13,7 @@ description: 将 AI 短剧的 storyboard.json、script.json、art.json 与 cast.
 
 - `storyboard.json`：每段必须有 `id`、`sceneIndex`、`cuts`、`h3Prompt`、`blocking`。
 - `script.json`：用于按 `sceneIndex` 找到正确场次、道具和逐字台词。
-- `art.json`：用于生成场景/道具参考节点及其连线。
+- `art.json`：用于生成场景/道具参考节点及其连线。带可选顶层块 `palette`（novel-art 2.1 起的全局色卡）时会额外生成一个全局色卡节点，连到每一张关键帧。
 - `cast.json`：用于生成角色主参考和独立多视角节点。
 
 可选 `images` 目录放已确认可用的场景、道具图片，写实与动画风格均可。脚本只嵌入能够对应 `art.json` 场景/道具的图片；不会自动打包未知图片或人物来源图。
@@ -36,6 +36,7 @@ node {baseDir}/scripts/export-infinite-canvas.mjs export \
 - 场景光照：`<场景名>-L<序号>-<光照状态>.png`
 - 道具状态：`<道具名>-S<序号>-<状态>.png`
 - 设定图：`<场景或道具名>-sheet.png`
+- 全局色卡：`palette-sheet.png`
 
 可选参数：
 
@@ -47,6 +48,7 @@ node {baseDir}/scripts/export-infinite-canvas.mjs export \
 
 - 每一格关键帧图片节点的提示词严格等于 `cut.frame`。不追加场景锚点、光照标签或“保持已连接参考图”的通用句。
 - 场景、角色、道具的一致性通过画布连线传递。场景映射必须是 `segment.sceneIndex -> script scene.sceneId -> art scene.id`，不得用数组位置猜测。
+- art.json 带 `palette` 时创建全局色卡节点并连到每一张关键帧——色调也靠连线传递，关键帧提示词同样不追加色卡文案。没有 `palette` 就不建这个节点。
 - 每个分段同时创建 H3 提示词/视频节点和豆包 Seedance 提示词/视频节点；两类视频节点连接同一批关键帧。
 - `blocking` 仅进入豆包提示词的 `【人物关系与构图逻辑】`。它用于跨镜空间连续性，不是关键帧出图提示词。
 - 每个角色创建一张正面全身主参考与 8 张独立多视角/局部锚点节点。人物图不做拼接大图；先生成主参考，再沿连线生成视图。关键帧始终连接角色主参考；导出器根据切镜的景别、构图、焦点和画面描述，额外连接匹配的正面、侧面、背面或服装局部视图。

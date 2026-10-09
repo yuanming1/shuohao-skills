@@ -6,6 +6,13 @@
 {
   "source": "渡口",
   "dynasty": "民国",
+  "palette": {
+    "title": "《渡口》全局色卡与材质 DNA",
+    "colors": [{ "name": "雾白", "hex": "#E9E7E0", "role": "空气底色……" }],
+    "materials": ["包浆旧木——被手和水汽磨出的深色光泽……"],
+    "lighting": ["雾中散射光——日戏基调：光从整片雾里来……"],
+    "sheet": "Flat-design color and material DNA reference board …（每个 hex 逐字包含）"
+  },
   "scenes": [{
     "id": "S01", "name": "渡船船舱", "primary": true,
     "summary": "设计意图：这个空间讲什么故事……",
@@ -34,6 +41,7 @@
 | `source` | 是 | 剧名/书名 |
 | `scenes` | 是 | 场景数组 |
 | `props` | 否 | **叙事道具**数组——只收有特写、跨集、承载剧情的（3–8 件为宜），场景陈设归场景锚点。选法见 `prop-pass.md` |
+| `palette` | 否 | **全局色卡与材质 DNA**——一部剧一个色调规范（色块 + 材质 DNA + 光照 DNA + 设定图指令）。写法见 `palette.md` |
 
 ## 单个场景（以校验器为准）
 
@@ -70,7 +78,17 @@
 | `image.sheet` | 是 | **英文** | 设定图版面指令，**必须写明 pure white background** + 同一套两档表面处理句之一 |
 | `usage` | 否 | — | `{episodes, beats}` |
 
-## 硬规则（10 道质量门，全是代码）
+## 全局色卡（可选块，以校验器为准）
+
+| 字段 | 必填 | 语言 | 说明 |
+| --- | --- | --- | --- |
+| `title` | 是 | 中文 | 这份色卡叫什么 |
+| `colors` | 4–8 个 | name/role 中文 | 色块 `{name, hex, role}`：hex 必须 `#RRGGBB`，role 写**这一色管什么**（空气底色 / 主材色 / 反光色……），从场景色板标签与锚点反推，不是凭空配的 |
+| `materials` | ≥1 条 | 中文 | 材质 DNA：跨场景共用的表面处理事实（包浆旧木、铜器绿锈——是事实不是画风） |
+| `lighting` | ≥1 条 | 中文 | 光照 DNA：全剧的光的规律（雾中散射基调、唯一夜光源、水面反光带） |
+| `sheet` | 是 | **英文** | 色卡设定图版面指令（见 `palette.md`）：扁平设计规范图，**必须逐色包含 hex** |
+
+## 硬规则（12 道质量门，全是代码）
 
 1. 锚点 3–5 个——少了认不出，多了核对不过来
 2. 光照状态 ≥1 且都有英文提示词
@@ -86,9 +104,14 @@
 9. 反向提示词禁手——拿着道具的手是最常见污染
 10. 设定图纯白背景可抠
 
+色卡两道（`palette` 给了才查，没给就**明说跳过**，视为通过）：
+
+11. 色卡数据齐全：4–8 色、hex 全部 `#RRGGBB`、材质/光照 DNA ≥1
+12. 色卡设定图全英文，且**逐色逐字包含 hex**——下游拿这张图对色调，hex 漂一个字符都对不上
+
 ## 校验
 
 ```bash
 node scripts/novel-art.mjs validate art.json --cast cast.json
-node scripts/novel-art.mjs checkup art.json               # 只打印 10 道门 ✓/✗
+node scripts/novel-art.mjs checkup art.json               # 只打印 12 道门 ✓/✗
 ```

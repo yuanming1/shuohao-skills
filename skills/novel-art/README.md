@@ -22,11 +22,19 @@
 
 场景陈设归场景锚点、一次性手部道具镜头级提示词解决——都不单独建资产。
 
+**全局色卡层**（`palette`，可选块）：
+
+- **一部剧一个色调规范** — 色块（4–8 色，每色带 role：空气底色 / 主材色 / 反光色……）+ 材质 DNA + 光照 DNA + 扁平设计设定图指令
+- **聚合而不是凭空配** — 色从场景色板标签与锚点反推；DNA 收的是跨场景共用的事实（所有铜件共用一种绿锈），不是画风
+- **下游挂参考，不进提示词正文** — novel-to-canvas 会把色卡连到每一张关键帧；往每条提示词里复写同一句色调是 scene-pass 记过的错
+
+
+
 产出 `art.json` + Markdown + 一个双击就能开的 `art-report.html`。报告界面默认中文；render 加 `--lang en` 输出全英文界面（或在 art.json 顶层写 `"lang": "en"`，`--lang` 优先）： 英文界面下质量门标签同样翻译（阈值原样），门的失败详情与数据内容保持原文。
 
 ![art-report.html](assets/report.webp)
 
-## 质量门：10 道，全是代码
+## 质量门：12 道，全是代码
 
 与仓库里另外两个 skill 同一主张：**checklist 交给模型自觉是靠不住的**。
 
@@ -42,6 +50,8 @@
 | **道具尺度** | scale 枚举对应的英文短语必须出现在提示词里 |
 | **道具无手** | 反向提示词禁 hands/fingers |
 | **道具白底** | 设定图必须 pure white background |
+| **色卡数据** | palette 给了才查：4–8 色、hex 全 `#RRGGBB`、DNA ≥1；没给就**明说跳过** |
+| **色卡设定图** | sheet 全英文且逐色逐字包含 hex |
 
 自测里每道门都有**击穿用例**——证明它真的会拦。
 
@@ -81,15 +91,16 @@ node scripts/novel-art.mjs render art.json --html --lang en  # 英文界面报�
 SKILL.md                 给 agent 读的工作流
 scripts/
   novel-art.mjs          seed / validate / checkup / render / slug
-  selftest.mjs           151 项断言，不调模型
+  selftest.mjs           179 项断言，不调模型
 references/
   schema.md              art.json 结构 + 硬规则
   scene-pass.md          怎么填场景设定（AI 短剧的思路）
   prop-pass.md           怎么选、怎么填叙事道具
+  palette.md             全局色卡与材质 DNA 怎么写
   sheet.md               设定图的版面规格
   report-style.md        报告的设计约定
 examples/
-  渡口-art.json           《渡口》三场景 + 两件道具样例，全部质量门通过
+  渡口-art.json           《渡口》三场景 + 两件道具 + 全局色卡样例，全部质量门通过
 assets/
   report.webp            报告截图
 ```
@@ -100,6 +111,6 @@ assets/
 node scripts/selftest.mjs
 ```
 
-151 项断言，覆盖 seed / 10 道门逐项击穿 / 渲染（中英界面）/ 导出。不调模型、不花额度、1 秒跑完。改完脚本先跑这个。
+179 项断言，覆盖 seed / 12 道门逐项击穿 / 渲染（中英界面）/ 导出。不调模型、不花额度、1 秒跑完。改完脚本先跑这个。
 
 **只在 macOS + Node 24 上实测过。** 代码没有平台相关调用，Linux 和更低版本 Node 理论上没问题，但**没验过**。

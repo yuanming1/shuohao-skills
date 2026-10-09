@@ -95,6 +95,9 @@ const PEOPLE_BAN = /people|human|figure|character|crowd/i;
 
 export const ANCHOR_RANGE = [3, 5];
 
+/** 全局色卡的颜色数：少了撑不起一部剧的色调统一，多了下游记不住（palette 是可选块）。 */
+export const PALETTE_COLOR_RANGE = [4, 8];
+
 /*
  * 道具尺度参照：AI 经常把手持道具画成家具尺寸——实拍不存在的坑。
  * scale 是中文枚举，出图提示词里必须出现对应的英文短语，validate 会对着查。
@@ -165,6 +168,16 @@ export function gateReport(doc, castNames = null) {
 
   }
 
+  // 色卡 sheet 也是给下游的提示词，同样不进角色名（给了 cast 才查）
+  if (castNames?.length && typeof doc?.palette?.sheet === 'string') {
+    for (const n of castNames) {
+      if (doc.palette.sheet.includes(n)) {
+        bad.names.push(`全局色卡 sheet 出现「${n}」`);
+        break;
+      }
+    }
+  }
+
   // 道具专属的门
   for (const pr of props) {
     const label = pr?.name ?? pr?.id ?? '(无名)';
@@ -202,6 +215,42 @@ export function gateReport(doc, castNames = null) {
   add('prop-scale', '道具尺度参照写进提示词', props.length === 0 || bad.scale.length === 0, bad.scale.join('；'));
   add('prop-hands', '道具参考图无手：反向提示词禁手', props.length === 0 || bad.hands.length === 0, bad.hands.join('；'));
   add('prop-white', '道具设定图纯白背景可抠', props.length === 0 || bad.whitebg.length === 0, bad.whitebg.join('；'));
+
+  // 色卡两道门（palette 是可选块：没有就明说跳过，有就照查）
+  const palette = doc?.palette ?? null;
+  const colors = palette && Array.isArray(palette.colors) ? palette.colors : [];
+  const SKIP = '未提供 palette，本门跳过（视为通过）';
+  const dataBad = [];
+  if (palette) {
+    if (colors.length < PALETTE_COLOR_RANGE[0] || colors.length > PALETTE_COLOR_RANGE[1]) {
+      dataBad.push(`色数 ${colors.length}（限 ${PALETTE_COLOR_RANGE[0]}–${PALETTE_COLOR_RANGE[1]}）`);
+    }
+    for (const c of colors) {
+      if (!/^#[0-9a-fA-F]{6}$/.test(String(c?.hex ?? ''))) dataBad.push(`「${c?.name ?? '?'}」hex 非法：${c?.hex ?? '(缺失)'}`);
+    }
+    if (!(palette.materials ?? []).length) dataBad.push('材质 DNA 为空');
+    if (!(palette.lighting ?? []).length) dataBad.push('光照 DNA 为空');
+  }
+  add(
+    'palette-data',
+    `全局色卡 ${PALETTE_COLOR_RANGE[0]}–${PALETTE_COLOR_RANGE[1]} 色、hex 合法、DNA 齐全`,
+    !palette || dataBad.length === 0,
+    palette ? dataBad.join('；') : SKIP,
+  );
+
+  const palSheet = palette ? String(palette.sheet ?? '') : '';
+  const sheetBad = palette
+    ? [
+      ...(CJK.test(palSheet) ? ['sheet 出现中文'] : []),
+      ...colors.filter((c) => c?.hex && !palSheet.includes(c.hex)).map((c) => `sheet 缺「${c.name}」的 hex ${c.hex}`),
+    ]
+    : [];
+  add(
+    'palette-sheet',
+    '色卡设定图全英文且逐色包含 hex',
+    !palette || sheetBad.length === 0,
+    palette ? sheetBad.join('；') : SKIP,
+  );
 
   return gates;
 }
@@ -295,6 +344,24 @@ export function validateArt(doc, castNames = null) {
     }
   }
 
+  // 色卡（可选块）：给了就查结构
+  const palette = doc.palette;
+  if (palette !== undefined) {
+    if (!thText(palette.title)) p('palette 缺 title（这份色卡叫什么）');
+    if (!Array.isArray(palette.colors) || !palette.colors.length) p('palette.colors 必须是非空数组');
+    for (const c of palette.colors ?? []) {
+      if (!thText(c?.name)) p('色卡颜色缺 name');
+      if (!thText(c?.role)) p(`色卡颜色「${c?.name ?? '?'}」缺 role（这一色管什么）`);
+    }
+    if (!Array.isArray(palette.materials) || !palette.materials.length || palette.materials.some((m) => !thText(m))) {
+      p('palette.materials 必须是非空字符串数组');
+    }
+    if (!Array.isArray(palette.lighting) || !palette.lighting.length || palette.lighting.some((l) => !thText(l))) {
+      p('palette.lighting 必须是非空字符串数组');
+    }
+    if (!thText(palette.sheet)) p('palette 缺 sheet（色卡设定图版面指令，英文）');
+  }
+
   // 质量门失败并入违规列表
   for (const g of gateReport(doc, castNames)) {
     if (!g.ok) p(`质量门未过：${g.label}${g.detail ? `（${g.detail}）` : ''}`);
@@ -336,6 +403,8 @@ const GATE_LABELS_EN = {
   'prop-scale': 'Prop scale reference written into the prompt',
   'prop-hands': 'No hands in prop plates: negatives ban hands',
   'prop-white': 'Prop sheets on pure white background, cut-out ready',
+  'palette-data': 'Global palette, {0}–{1} colors with valid hex and complete DNA',
+  'palette-sheet': 'Palette sheet fully in English, every hex included verbatim',
 };
 const GATE_SKIPS_EN = {
     '未提供 outline.json，本门跳过（视为通过）': 'outline.json not provided — gate skipped (treated as passing)',
@@ -343,6 +412,7 @@ const GATE_SKIPS_EN = {
     '未提供 script.json，本门跳过（视为通过）': 'script.json not provided — gate skipped (treated as passing)',
     '未提供 outline/cast，本门跳过（视为通过）': 'outline/cast not provided — gate skipped (treated as passing)',
     '未提供 cast.json，本门跳过（视为通过）': 'cast.json not provided — gate skipped (treated as passing)',
+    '未提供 palette，本门跳过（视为通过）': 'palette not provided — gate skipped (treated as passing)',
 };
 /** 报告里的门文案：英文界面取映射，未命中或中文界面回落原文。 */
 const gateText = (g, lang) => {
@@ -374,6 +444,12 @@ const I18N = {
     secCards: '场景设定卡',
     secPropList: '道具清单',
     secPropCards: '道具设定卡',
+    secPalette: '全局色卡与材质 DNA',
+    paletteHint: '一部剧一个色调规范——下游出图时挂参考，不往每条提示词里复写',
+    paletteCols: ['色', 'hex', '管什么'],
+    materialsTitle: '材质 DNA',
+    lightingDnaTitle: '光照 DNA',
+    paletteSheetCaption: '扁平设计规范图 · 不是剧情图',
     secGates: '质量门',
     propListCols: ['ID', '道具', '尺度', '状态', '关联场景', '出现集', '锚点'],
     statesTitle: '状态变体',
@@ -425,6 +501,12 @@ const I18N = {
     secCards: 'Scene sheets',
     secPropList: 'Prop list',
     secPropCards: 'Prop sheets',
+    secPalette: 'Global palette & material DNA',
+    paletteHint: 'One tone spec per show — attached as a reference downstream, never copy-pasted into every prompt',
+    paletteCols: ['Color', 'hex', 'Function'],
+    materialsTitle: 'Material DNA',
+    lightingDnaTitle: 'Lighting DNA',
+    paletteSheetCaption: 'Flat-design spec board · not a story image',
     secGates: 'Quality gates',
     propListCols: ['ID', 'Prop', 'Scale', 'States', 'Related scenes', 'Episodes', 'Anchors'],
     statesTitle: 'Prop states',
@@ -482,6 +564,18 @@ export function renderMarkdown(doc, lang = null) {
   const t = tOf(lang ?? doc?.lang);
   const props = doc.props ?? [];
   const out = [`# ${t.docTitle(doc.source)}`, ''];
+
+  if (doc.palette) {
+    out.push(`## ${t.secPalette}`, '');
+    if (doc.palette.sheetImage) out.push(`![${t.secPalette} ${t.paletteSheetCaption}](${doc.palette.sheetImage})`, '');
+    out.push(mdHead(t.paletteCols));
+    for (const c of doc.palette.colors) out.push(mdRow([c.name, c.hex, c.role]));
+    out.push('', `### ${t.materialsTitle}`, '');
+    doc.palette.materials.forEach((m) => out.push(`- ${m}`));
+    out.push('', `### ${t.lightingDnaTitle}`, '');
+    doc.palette.lighting.forEach((l) => out.push(`- ${l}`));
+    out.push('', `**${t.promptSheet}**`, '', '```text', doc.palette.sheet, '```', '');
+  }
 
   out.push(`## ${t.secList}`, '', mdHead(t.listCols));
   for (const s of doc.scenes) {
@@ -562,6 +656,9 @@ export function renderHtml(doc, lang = null) {
   const anchorN = [...scenes, ...props].reduce((n, s) => n + s.anchors.length, 0);
   const lightN = scenes.reduce((n, s) => n + s.lighting.length, 0);
   const stateN = props.reduce((n, pr) => n + pr.states.length, 0);
+  // 区块序号：色卡（可选）在最前，后面全部顺延
+  const no2 = (n) => String(n).padStart(2, '0');
+  const paletteOff = doc.palette ? 1 : 0;
 
   const table = (cols, rows) =>
     `<table><thead><tr>${cols.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead>
@@ -670,11 +767,42 @@ export function renderHtml(doc, lang = null) {
   ${gates
     .map(
       (g) => `<li class="${g.ok ? 'ok' : 'bad'}"><span class="m">${g.ok ? '✓' : '✗'}</span><span>${esc(gateText(g, t.langCode).label)}${
-        !g.ok && g.detail ? `<small>${esc(g.detail)}</small>` : g.id === 'no-names' && g.detail ? `<small>${esc(g.detail)}</small>` : ''
+        !g.ok && g.detail ? `<small>${esc(g.detail)}</small>` : (g.id === 'no-names' || g.id.startsWith('palette-')) && g.detail ? `<small>${esc(g.detail)}</small>` : ''
       }</span></li>`,
     )
     .join('\n  ')}
 </ul>`;
+
+  // 色卡区块（可选）：色块条 + 材质/光照 DNA 两栏 + 设定图提示词
+  const paletteSection = doc.palette
+    ? `<section class="top-sec" id="sec-palette">
+  <div class="sec-h"><span class="no">${no2(1)}</span><h2>${esc(t.secPalette)}</h2><span class="note">${esc(t.paletteHint)}</span></div>
+  ${doc.palette.sheetImage
+    ? `<figure class="plate" style="margin-bottom:14px">
+  <button class="zoom" data-src="${esc(doc.palette.sheetImage)}" aria-label="${esc(t.zoomImage)}">
+    <img src="${esc(doc.palette.sheetImage)}" alt="${esc(t.secPalette)} ${esc(t.paletteSheetCaption)}" loading="lazy">
+  </button>
+  <figcaption>${esc(t.paletteSheetCaption)}</figcaption>
+</figure>`
+    : ''}
+  <div class="swatches">
+  ${doc.palette.colors.map((c) => `<div class="sw"><i style="background:${esc(c.hex)}"></i><b>${esc(c.name)}</b><span class="mono">${esc(c.hex)}</span><span>${esc(c.role)}</span></div>`).join('\n  ')}
+  </div>
+  <div class="pal-dna">
+    <section class="blk">
+      <h4>${esc(t.materialsTitle)}</h4>
+      <ul class="dna">${doc.palette.materials.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>
+    </section>
+    <section class="blk">
+      <h4>${esc(t.lightingDnaTitle)}</h4>
+      <ul class="dna">${doc.palette.lighting.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
+    </section>
+  </div>
+  <div class="pgroup" style="margin-top:14px">
+    ${promptRow(t.promptSheet, doc.palette.sheet)}
+  </div>
+</section>`
+    : '';
 
   return `<!doctype html>
 <html lang="${code}"><head>
@@ -783,6 +911,18 @@ td:first-child{font-family:var(--mono);font-size:12px;color:var(--ink-2);white-s
 .light i{flex:none;font-style:normal;font:500 12px/1.6 var(--sans);color:var(--ink)}
 .light .mono{flex:1;min-width:0}
 
+/* 全局色卡：色块条 + 材质/光照 DNA 两栏 */
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:16px}
+.sw{background:var(--panel);border:1px solid var(--rule);border-radius:2px;padding:10px}
+.sw i{display:block;height:34px;border:1px solid var(--rule-2);border-radius:2px;margin-bottom:7px}
+.sw b{display:block;font-weight:500}
+.sw .mono{display:block;margin:1px 0 4px}
+.pal-dna{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:900px){.pal-dna{grid-template-columns:1fr}}
+.dna{margin:0;padding:0;list-style:none}
+.dna li{padding:6px 0;border-top:1px solid var(--rule);font-size:13px}
+.dna li:first-child{border-top:0}
+
 .pgroup{border:1px solid var(--rule);border-radius:2px;background:var(--paper);padding:4px 12px 8px;margin-top:12px}
 .pr{border-bottom:1px solid var(--rule)}
 .pgroup .pr:last-of-type{border-bottom:0}
@@ -844,32 +984,34 @@ td:first-child{font-family:var(--mono);font-size:12px;color:var(--ink-2);white-s
 </div>
 ${failed.length ? `<div class="galert"><b>✗ ${esc(t.gatesFail(failed.length))}</b>${failed.map((g) => `<span>${esc(gateText(g, t.langCode).label)}${g.detail ? ` — ${esc(gateText(g, t.langCode).detail)}` : ''}</span>`).join('')}</div>` : ''}
 
+${paletteSection}
+
 <section class="top-sec" id="sec-list">
-  <div class="sec-h"><span class="no">01</span><h2>${esc(t.secList)}</h2></div>
+  <div class="sec-h"><span class="no">${no2(1 + paletteOff)}</span><h2>${esc(t.secList)}</h2></div>
   ${table(t.listCols, listRows)}
 </section>
 
 <section class="top-sec" id="sec-cards">
-  <div class="sec-h"><span class="no">02</span><h2>${esc(t.secCards)}</h2></div>
+  <div class="sec-h"><span class="no">${no2(2 + paletteOff)}</span><h2>${esc(t.secCards)}</h2></div>
   <div class="cards">
 ${cards}
   </div>
 </section>
 
 ${props.length ? `<section class="top-sec" id="sec-prop-list">
-  <div class="sec-h"><span class="no">03</span><h2>${esc(t.secPropList)}</h2></div>
+  <div class="sec-h"><span class="no">${no2(3 + paletteOff)}</span><h2>${esc(t.secPropList)}</h2></div>
   ${table(t.propListCols, propListRows)}
 </section>
 
 <section class="top-sec" id="sec-prop-cards">
-  <div class="sec-h"><span class="no">04</span><h2>${esc(t.secPropCards)}</h2></div>
+  <div class="sec-h"><span class="no">${no2(4 + paletteOff)}</span><h2>${esc(t.secPropCards)}</h2></div>
   <div class="cards">
 ${propCards}
   </div>
 </section>` : ''}
 
 <section class="top-sec" id="sec-gates">
-  <div class="sec-h"><span class="no">${props.length ? '05' : '03'}</span><h2>${esc(t.secGates)}</h2></div>
+  <div class="sec-h"><span class="no">${no2((props.length ? 5 : 3) + paletteOff)}</span><h2>${esc(t.secGates)}</h2></div>
   ${gateList}
   <p class="gsum">${failed.length ? `<b>${esc(t.gatesFail(failed.length))}</b>` : esc(t.gatesPass)}</p>
 </section>
@@ -1010,6 +1152,11 @@ function main(argv) {
     for (const item of [...doc.scenes, ...(doc.props ?? [])]) {
       const abs = join(imagesDir, `${slug(item.name)}-sheet.png`);
       if (existsSync(abs)) item.sheetImage = relative(outDir, abs).split(sep).join('/');
+    }
+    // 色卡设定图不走场景/道具的命名约定，固定叫 palette-sheet.png
+    if (doc.palette) {
+      const abs = join(imagesDir, 'palette-sheet.png');
+      if (existsSync(abs)) doc.palette.sheetImage = relative(outDir, abs).split(sep).join('/');
     }
     process.stdout.write((rest.includes('--html') ? renderHtml(doc, lang) : renderMarkdown(doc, lang)) + '\n');
     return;
