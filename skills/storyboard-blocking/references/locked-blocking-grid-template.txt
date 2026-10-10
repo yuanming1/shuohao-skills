@@ -1,0 +1,33 @@
+A single flat film-production review sheet combining a BLOCKING DIAGRAM on the LEFT and a LOCKED STORYBOARD GRID on the RIGHT. This is a document, not a movie frame.
+Preserve the supplied story, shot order, shot sizes, start states and actual timings. Do not invent blocking to make the sheet look complete.
+
+LAYOUT: reserve about 45 percent of the content width for the left diagram and 55 percent for the right grid. The RIGHT grid has exactly $panel_count valid panels in $columns columns and $rows rows; the LEFT diagram is not a shot and is not counted as a panel. All right-panel image areas have the same aspect ratio: $aspect.
+$row_order
+$empty_cells
+Header: $title. Original duration: $duration seconds. Use a neutral light-grey board, clean gutters and thin borders.
+
+LEFT — OPENING BLOCKING DIAGRAM (time 00:00.000):
+$opening
+Draw a readable schematic overhead view of only the established environment anchors, people and relevant props. Preserve their relative positions and facing. Use consistent character labels and a compact legend. Scene-relative positions must not be confused with screen-left or screen-right under a different camera.
+Mark camera positions by the original shot IDs only where the supplied descriptions establish them. Draw an axis only if the interacting subjects or movement direction establish it; never add an arbitrary decorative 180-degree line. Do not invent distances, coordinates, furniture, doors or a camera side absent from the source. Mark unresolved spatial information as "待复核".
+The main diagram depicts the opening state only. If the source describes later movement, overlay a shot-labelled path and distinct start/end markers; use small time-labelled state insets if needed. Do not place later states into the opening layout, clone a character as a second person, or imply that a static diagram verifies a moving action.
+
+SOURCE CAMERA AND ACTION PLANS, IN SHOT ORDER:
+$spatial_shots
+Use these plans to annotate cameras, facing and movement on the LEFT and to cross-check the RIGHT panels. Actions belong to their specified intervals. If a plan conflicts with a locked frame description or supplied image, flag the affected shot as "待复核" and preserve the discrepancy for upstream correction; do not silently rewrite the frame or video action.
+
+RIGHT — ORIGINAL TIMECODES (not equal-duration resampling):
+$timecodes
+Each panel depicts the START of its interval. Never draw a completed handover, arrival, turn or rise before that action occurs.
+
+THE $panel_count PANELS, IN LOCKED ORDER:
+$panels
+Follow each locked shot size, camera, foreground/background relationship, eyeline and visible state. A person outside the frame may still exist in the scene; do not move everyone into every panel. Keep character faces, wardrobe, props and established environment anchors consistent.
+
+OPTIONAL IMAGE REFERENCES:
+$references
+Attach listed image files to the image tool; filesystem paths in text do not upload images. Each source frame applies only to its matching panel. Without an image, use the locked text description and a consistent visual treatment, without claiming a match to unseen assets. With images, preserve their established style and framing; flag conflicting references instead of redesigning them.
+
+Place panel numbers, original shot IDs, original time ranges and short notes BELOW the right-panel images. Put arrows, character labels, camera marks and the legend only in the diagram or document margins, never inside cinematic panels. Preserve any source-story text already specified within a frame.
+
+Render the COMPLETE review sheet: one opening blocking diagram plus $panel_count valid storyboard panels, not new standalone keyframes. This sheet is for review and does not prove geometry, action continuity or actual video timing. Formal video generation uses the corrected standalone keyframes and per-shot video descriptions; this annotated sheet must not replace or become an extra numbered keyframe.
