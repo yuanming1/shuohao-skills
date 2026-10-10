@@ -1,6 +1,10 @@
-[![中文](https://img.shields.io/badge/%E4%B8%AD%E6%96%87-f2e3e3?style=for-the-badge&labelColor=f2e3e3&color=b07070)](README.md)
-[![English](https://img.shields.io/badge/English-8b1a1a?style=for-the-badge)](README.en.md)
+[![中文](https://img.shields.io/badge/%E4%B8%AD%E6%96%87-f2e3e3?style=for-the-badge&labelColor=f2e3e3&color=b07070)](README.zh.md)
+[![English](https://img.shields.io/badge/English-8b1a1a?style=for-the-badge)](README.md)
 [![Follow on X](https://img.shields.io/badge/Follow-%40eternityspring-b07070?style=for-the-badge&labelColor=8b1a1a&logo=x&logoColor=f2e3e3)](https://x.com/eternityspring)
+
+🎬 **[AI Video Workspace](https://studio.reelbenchai.com)**
+
+[![ReelBench AI Video Workspace](assets/reelbench-first-screen-en.png)](https://studio.reelbenchai.com)
 
 > 👋 **Open to work / collaboration** — I'm between jobs right now, and this repo is what I build in that spare time.
 > Happy to hear from anyone this resonates with. Besides **remote work**, I'm also open to a **half-collaboration**: a few thousand RMB a month for living costs plus a profit share. On-site trips are possible where the work genuinely needs them. What I'm really after is finding people on the same wavelength to build something in this AI wave.
@@ -11,7 +15,7 @@
 
 # shuohao-skills
 
-**Agent skills for AI short-drama production** — from a novel to shoot-ready material: character bibles, adaptation outlines, scene & prop bibles, screenplays, storyboards. Built for AI coding agents, **runs in both Claude Code and codex**.
+**Agent-agnostic skills for AI short-drama production** — from a novel to shoot-ready material: character bibles, adaptation outlines, scene & prop bibles, screenplays, storyboards. Each skill is self-contained and works with any Agent that can read `SKILL.md` and run the bundled scripts; Claude Code and Codex are two supported examples, not requirements.
 
 Here is the whole pipeline — **the outline converges the structure; script, scenes and characters iterate together; the storyboard only outputs, it makes no new decisions**:
 
@@ -88,7 +92,7 @@ cd shuohao-skills
 ./scripts/install.sh
 ```
 
-It detects whether you have Claude Code or codex installed and **symlinks** every skill into place — so `git pull` takes effect immediately, with no reinstall.
+The installer currently detects Claude Code and Codex and **symlinks** every skill into place — so `git pull` takes effect immediately, with no reinstall. The skills themselves are not tied to either runtime. For any other Agent, copy or symlink the skill directory into its skills directory, or load its `SKILL.md` directly.
 
 ```bash
 ./scripts/install.sh novel-characters   # just one skill
@@ -99,6 +103,8 @@ It detects whether you have Claude Code or codex installed and **symlinks** ever
 Prefer to do it by hand:
 
 ```bash
+AGENT_SKILLS_DIR=/path/to/your-agent/skills
+ln -s "$PWD/skills/novel-characters" "$AGENT_SKILLS_DIR/novel-characters"
 ln -s "$PWD/skills/novel-characters" ~/.claude/skills/novel-characters
 ln -s "$PWD/skills/novel-characters" ~/.codex/skills/novel-characters
 ```
@@ -109,7 +115,7 @@ ln -s "$PWD/skills/novel-characters" ~/.codex/skills/novel-characters
 | --- | --- | --- |
 | **Node** | Yes | ≥ 18. The skill scripts use only the standard library — **no npm dependencies, nothing to install** |
 | **Model quota** | Yes | Uses your current session's quota. **No API key needed** |
-| **codex CLI** | Optional | Just one of the two runtimes these skills run in, equivalent to Claude Code. The five pipeline skills **do not generate images**, so none of its local capabilities are needed |
+| **Agent runtime** | Yes | Any Agent that can read `SKILL.md` and run the bundled Node.js scripts. Claude Code and Codex are supported examples |
 | **Image model** | Only for character-refs | One of: your own ComfyUI (Qwen Image), local codex image generation (uses your ChatGPT plan quota), an OpenAI API key (GPT Image 2), or a custom command. Chosen on first use |
 
 > **Note on output language.** These skills are Chinese-first. `novel-characters` produces Chinese character profiles even for an English source novel, and its validator actively rejects English in those fields. See that skill's README for what it would take to change.
