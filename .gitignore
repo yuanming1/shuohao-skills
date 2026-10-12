@@ -33,3 +33,12 @@ node_modules/
 
 # 各 skill 的本机配置（character-refs 的出图模型选择等），每台机器不同
 skills/*/config.local.json
+
+# Python 字节码缓存
+__pycache__/
+
+# Serena 本机工具配置
+.serena/
+
+# 仓库根的分集中间工作稿（novel-previz 分批生成时的暂存文件）
+/script-work-*.json
