@@ -42,3 +42,4 @@ __pycache__/
 
 # 仓库根的分集中间工作稿（novel-previz 分批生成时的暂存文件）
 /script-work-*.json
+tmp/*

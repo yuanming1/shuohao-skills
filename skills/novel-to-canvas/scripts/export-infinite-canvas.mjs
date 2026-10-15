@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { basename, extname, resolve } from "node:path";
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
+import { loadPreviz, keyframePrompt, spatialSummary, spatialCut, storyboardSegments, validateHandoff, gridComposer } from "./previz-handoff.mjs";
 
 const SHOT_SIZES = { wide: "全景", medium: "中景", close: "特写", extreme_close: "大特写" };
 const CAMERA = { "Static Shot": "固定镜头", "Tracking Shot": "跟拍", "Push In": "缓慢推镜", "Pull Out": "缓慢拉镜", "Pan Left": "左摇镜头", "Pan Right": "右摇镜头", "Tilt Up": "上摇镜头", "Tilt Down": "下摇镜头", "Handheld": "手持跟拍" };
@@ -48,13 +50,17 @@ function exportCanvas(args) {
     const title = String(args.title || `${titleFromFile(input.storyboard)} · 分镜投产画布`);
     const projectId = safeId(args["project-id"] || `${titleFromFile(input.storyboard)}-storyboard`);
     const constraints = args.constraints ? readFileSync(resolve(args.constraints), "utf8").split(/\r?\n/).map((line) => line.trim()).filter(Boolean) : [];
-    const packageData = buildCanvas({ storyboard, script, art, cast, sourcePaths: input, imageDir, title, projectId, constraints, includeCharacterViews: !args["no-character-views"] });
+    const previz = args.previz ? loadPreviz(requiredPath(args, "previz"), storyboard) : new Map();
+    const packageData = buildCanvas({ storyboard, script, art, cast, sourcePaths: input, imageDir, title, projectId, constraints, includeCharacterViews: !args["no-character-views"], previz });
     writeFileSync(out, writeStoredZip(packageData.entries));
     console.log(`已导出：${out}`);
-    console.log(`项目：${title}；关键帧 ${packageData.summary.keyframes} 张；H3 视频 ${packageData.summary.segments} 条；豆包 Seedance 视频 ${packageData.summary.segments} 条；嵌入参考图 ${packageData.summary.embeddedImages} 张。`);
+    console.log(`项目：${title}；关键帧组合节点 ${packageData.summary.keyframes} 个；H3 视频组合节点 ${packageData.summary.segments} 个；豆包 Seedance 视频组合节点 ${packageData.summary.segments} 个；嵌入参考图 ${packageData.summary.embeddedImages} 张。`);
+    console.log("选定关键帧结果后，连接到视频组合节点并按镜号依次插入 @ 引用；修改参考图后在组合节点再次开始生成。");
+    console.log(`站位与拍摄说明 ${packageData.summary.segments} 段；预演宫格 ${previz.size} 段。`);
+    if (args.previz && previz.size < packageData.summary.segments) console.log(`未提供预演宫格的段落使用 storyboard 中已有的空间与拍摄信息。`);
 }
 
-function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, title, projectId, constraints, includeCharacterViews }) {
+function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, title, projectId, constraints, includeCharacterViews, previz = new Map() }) {
     assertArray(storyboard.episodes, "storyboard.episodes");
     assertArray(script.episodes, "script.episodes");
     assertArray(art.scenes, "art.scenes");
@@ -63,9 +69,6 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
 
     const now = new Date().toISOString();
     const scriptByEpisode = new Map(script.episodes.map((episode) => [episode.ep, episode]));
-    const sceneNames = new Map(art.scenes.map((scene) => [scene.id, scene.name]));
-    const propNames = new Map(art.props.map((prop) => [prop.id, prop.name]));
-    const characterNames = new Map(cast.characters.map((character) => [character.id, character.name]));
     const imageFiles = imageDir ? collectImageFiles(imageDir) : [];
     const nodes = [];
     const connections = [];
@@ -196,6 +199,7 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
     const narrativeStartY = Math.max(1200, Math.ceil(assetIndex / 6) * 300 + 200);
     let segmentIndex = 0;
     let keyframes = 0;
+    let narrativeY = narrativeStartY;
     for (const episode of storyboard.episodes) {
         const scriptEpisode = scriptByEpisode.get(episode.ep);
         if (!scriptEpisode) fail(`分镜第 ${episode.ep} 集在剧本中不存在。`);
@@ -203,48 +207,61 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
             if (!segment.id || !Array.isArray(segment.cuts) || !segment.h3Prompt) fail(`${segment.id || "未命名分段"} 缺少 cuts 或 h3Prompt。`);
             const scriptScene = scriptEpisode.scenes?.[segment.sceneIndex - 1];
             if (!scriptScene) fail(`${segment.id} 的 sceneIndex 无法映射到剧本场次。`);
-            const y = narrativeStartY + segmentIndex * 340;
+            const y = narrativeY;
+            const handoff = previz.get(segment.id);
+            narrativeY += Math.max(600, (handoff?.references.length || 0) * 280);
             segmentIndex += 1;
+            addNode({ type: "text", title: `${segment.id} · 站位与拍摄说明`, position: { x: -420, y }, width: 380, height: 280, metadata: { content: spatialSummary(segment, handoff), status: "success", fontSize: 14 } });
+            if (handoff) {
+                const gridText = addNode({ type: "text", title: `${segment.id} · 预演宫格提示词`, position: { x: -1260, y }, width: 380, height: 280, metadata: { content: handoff.prompt, status: "success", fontSize: 14 } });
+                const references = handoff.references.map((reference, index) => {
+                    const node = makeImageNode({ title: `${reference.shot} · 预演参考图`, x: -1660, y: y + index * 280, prompt: "", imageFile: reference });
+                    return { shot: reference.shot, id: node.id };
+                });
+                const prompt = gridComposer(handoff.prompt, references);
+                const grid = addNode({ type: "config", title: `${segment.id} · 预演宫格生图`, position: { x: -840, y }, width: 380, height: 280, metadata: { prompt, composerContent: prompt, status: "idle", generationMode: "image", count: 1, size: "16:9" } });
+                addConnection(gridText.id, grid.id);
+                for (const reference of references) addConnection(reference.id, grid.id);
+            }
             const h3Text = addNode({ type: "text", title: `${segment.id} · H3 提示词`, position: { x: 0, y }, width: 340, height: 240, metadata: { content: segment.h3Prompt, status: "success", fontSize: 14 } });
-            const keyframeNodes = [];
             segment.cuts.forEach((cut, cutIndex) => {
                 const frame = addNode({
-                    type: "image",
+                    type: "config",
                     title: `${segment.id} · 关键帧 ${cutIndex + 1}`,
-                    position: { x: 400 + cutIndex * 380, y },
+                    position: { x: 400 + cutIndex * 840, y },
                     width: 340,
-                    height: 240,
-                    metadata: { content: "", prompt: String(cut.frame || ""), status: "idle", generationMode: "image", count: 1, size: "16:9" },
+                    height: 280,
+                    metadata: { composerContent: "", status: "idle", generationMode: "image", count: 1, size: "16:9" },
                 });
-                keyframeNodes.push(frame);
                 keyframes += 1;
+                const referenceIds = new Set();
                 const sceneAsset = sceneReference.get(scriptScene.sceneId);
                 const sceneNodeId = sceneAsset?.lightingNodes.get(scriptScene.lighting) || sceneAsset?.sheetId;
-                if (sceneNodeId) addConnection(sceneNodeId, frame.id);
-                if (paletteNodeId) addConnection(paletteNodeId, frame.id);
+                if (sceneNodeId) referenceIds.add(sceneNodeId);
+                if (paletteNodeId) referenceIds.add(paletteNodeId);
                 const characterIds = new Set(Array.isArray(cut.characters) ? cut.characters : (scriptScene.characters || []));
                 for (const characterId of characterIds) {
                     if (characterId === "VO") continue;
                     const reference = characterReference.get(characterId);
                     if (!reference) continue;
-                    addConnection(reference.masterId, frame.id);
-                    for (const viewNodeId of selectCharacterViewIds(reference, cut)) addConnection(viewNodeId, frame.id);
+                    referenceIds.add(reference.masterId);
+                    for (const viewNodeId of selectCharacterViewIds(reference, cut)) referenceIds.add(viewNodeId);
                 }
                 const propIds = new Set(Array.isArray(cut.props) ? cut.props : (scriptScene.props || []));
                 for (const propId of propIds) {
-                    for (const propNodeId of propReference.get(propId) || []) addConnection(propNodeId, frame.id);
+                    for (const propNodeId of propReference.get(propId) || []) referenceIds.add(propNodeId);
                 }
+                for (const id of referenceIds) addConnection(id, frame.id);
+                frame.metadata.composerContent = keyframeComposer(keyframePrompt(segment, cut, cutIndex, handoff), nodes.filter((node) => referenceIds.has(node.id)));
             });
+            addNode({ type: "text", title: `${segment.id} · 关键帧操作说明`, position: { x: 400, y: y + 320 }, width: 740, height: 220, metadata: { content: keyframeInstructions(segment), status: "success", fontSize: 14 } });
             const seconds = String(Math.max(1, Math.round(segment.cuts.reduce((total, cut) => total + Number(cut.seconds || 0), 0))));
-            const videoX = 400 + segment.cuts.length * 380 + 20;
-            const h3Video = addNode({ type: "video", title: `${segment.id} · H3 视频`, position: { x: videoX, y }, width: 420, height: 236, metadata: { content: "", prompt: segment.h3Prompt, status: "idle", generationMode: "video", seconds, size: "16:9", videoMode: "reference" } });
-            const seedance = seedancePrompt(segment, scriptScene, constraints);
-            const seedanceText = addNode({ type: "text", title: `${segment.id} · 豆包 Seedance 提示词`, position: { x: videoX + 480, y }, width: 340, height: 240, metadata: { content: seedance, status: "success", fontSize: 14 } });
-            const seedanceVideo = addNode({ type: "video", title: `${segment.id} · 豆包 Seedance 视频`, position: { x: videoX + 880, y }, width: 420, height: 236, metadata: { content: "", prompt: seedance, status: "idle", generationMode: "video", seconds, size: "16:9", videoMode: "reference" } });
-            for (const frame of keyframeNodes) {
-                addConnection(frame.id, h3Video.id);
-                addConnection(frame.id, seedanceVideo.id);
-            }
+            const videoX = 400 + segment.cuts.length * 840 + 20;
+            addNode({ type: "config", title: `${segment.id} · H3 视频`, position: { x: videoX, y }, width: 340, height: 280, metadata: { composerContent: segment.h3Prompt, generationMode: "video", seconds, size: "16:9", videoMode: "reference" } });
+            const seedance = seedancePrompt(segment, scriptScene, constraints, handoff);
+            const seedanceText = addNode({ type: "text", title: `${segment.id} · 豆包 Seedance 提示词`, position: { x: videoX + 940, y }, width: 340, height: 240, metadata: { content: seedance, status: "success", fontSize: 14 } });
+            addNode({ type: "config", title: `${segment.id} · 豆包 Seedance 视频`, position: { x: videoX + 1320, y }, width: 340, height: 280, metadata: { composerContent: seedance, generationMode: "video", seconds, size: "16:9", videoMode: "reference" } });
+            addNode({ type: "text", title: `${segment.id} · 视频操作说明`, position: { x: videoX, y: y + 320 }, width: 900, height: 220, metadata: { content: videoInstructions(segment), status: "success", fontSize: 14 } });
             void h3Text;
             void seedanceText;
         }
@@ -270,17 +287,51 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
         { name: `source/${basename(sourcePaths.script)}`, data: Buffer.from(JSON.stringify(script, null, 2), "utf8") },
         { name: `source/${basename(sourcePaths.art)}`, data: Buffer.from(JSON.stringify(art, null, 2), "utf8") },
         { name: `source/${basename(sourcePaths.cast)}`, data: Buffer.from(JSON.stringify(cast, null, 2), "utf8") },
+        { name: "source/canvas-input.json", data: Buffer.from(JSON.stringify({ version: 3, storyboard: `source/${basename(sourcePaths.storyboard)}`, previz: [...previz.keys()], script: `source/${basename(sourcePaths.script)}`, constraints }), "utf8") },
+        ...[...previz].flatMap(([sid, handoff]) => [
+            { name: `source/previz/${sid}/grid-input.json`, data: Buffer.from(JSON.stringify(handoff.data, null, 2), "utf8") },
+            { name: `source/previz/${sid}/grid-prompt.txt`, data: Buffer.from(handoff.prompt, "utf8") },
+            { name: `source/previz/${sid}/grid-brief.md`, data: Buffer.from(handoff.brief, "utf8") },
+        ]),
         ...embeddedFiles.map((file) => ({ name: file.path, data: file.data })),
     ];
     return { entries, summary: { segments: segmentIndex, keyframes, embeddedImages: embeddedFiles.length } };
 }
 
-function seedancePrompt(segment, scriptScene, constraints) {
+function keyframeComposer(prompt, references) {
+    if (!references.length) return prompt;
+    return `${prompt}\n\n【参考图片对应】\n${references.map((node) => `${node.title}：@[node:${node.id}]`).join("\n")}\n场景参考负责环境，色卡负责色调与材质，角色参考负责身份与服装，道具参考负责物件外观；人物站位、构图和切点状态以本镜描述为准。`;
+}
+
+function keyframeInstructions(segment) {
+    return [
+        "1. 在每个关键帧组合节点的「组装提示词」中添加、移除或更换参考图，并同步正文中的 @ 引用；参考图片需要先生成或上传。",
+        "2. 点击组合节点的「开始生成」，结果会另建图片节点。调整参考图后继续在组合节点生成，可以保留旧结果进行比较。",
+        "3. 从每镜结果中选定一张图片，按下面的顺序连接到本段 H3 与豆包 Seedance 视频节点；替换结果时先移除旧图片到视频的连线。",
+        ...segment.cuts.map((_, index) => `图片${index + 1} ← ${segment.id} · 关键帧 ${index + 1} 的选定结果`),
+        "4. 需要基于已有结果修改时，把该结果连接到组合节点，在正文中 @ 引用并明确修改要求；输出图片的「重新生成」会复用它上次保存的参考。",
+    ].join("\n");
+}
+
+function videoInstructions(segment) {
+    return [
+        "1. 本段 H3 与豆包 Seedance 视频使用组合节点。分别选择对应模型或通道，保留本段时长、画幅和参考模式。",
+        "2. 每镜选定一张关键帧结果图片，连接到两个视频组合节点。在「组装提示词」正文最前面按镜号依次插入 @ 图片引用，并标明下面的对应关系；只连接图片不会提交参考图。",
+        ...segment.cuts.map((_, index) => `Picture ${index + 1} / 图片${index + 1} ← ${segment.id} · 关键帧 ${index + 1} 的选定结果`),
+        "3. @ 引用首次出现的顺序决定提交图片的编号。替换某镜参考图时，移除旧连线，并在原来的引用位置选择新图片；新增辅助参考图放在所有关键帧引用之后，保持原有镜号对应关系。",
+        "4. 确认正文引用覆盖每镜选定图片，再点击视频组合节点的「开始生成」。结果会另建视频节点；修改提示词或参考图后，继续在组合节点生成新结果。",
+    ].join("\n");
+}
+
+function seedancePrompt(segment, scriptScene, constraints, handoff) {
     const lines = segment.cuts.map((_, index) => `@[图片${index + 1}] = 分镜图 #${index + 1}`);
     if (lines.length) lines.push("");
-    if (String(segment.blocking || "").trim()) lines.push("【人物关系与构图逻辑】", String(segment.blocking).trim(), "");
+    const opening = handoff?.data.planning?.opening || segment.blocking;
+    if (String(opening || "").trim()) lines.push("【人物关系与构图逻辑】", String(opening).trim(), "");
     const beats = (scriptScene.flow || []).map((item) => ({ kind: item.line ? "line" : "action", speaker: item.speaker, text: item.line }));
     segment.cuts.forEach((cut, index) => {
+        const spatial = spatialCut(segment, cut, index, handoff);
+        cut = spatial.view;
         const push = (label, value) => {
             const text = String(value || "").trim();
             if (text) lines.push(`${label}：${text}`);
@@ -291,7 +342,8 @@ function seedancePrompt(segment, scriptScene, constraints) {
         push("构图", cut.composition);
         push("运镜", CAMERA[cut.camera] || cut.camera);
         push("景别", SHOT_SIZES[cut.size] || cut.size);
-        push("画面", `${String(cut.shot || "").trim()}（构图参考 @图片${index + 1}）`);
+        push("画面", `${spatial.action}（构图参考 @图片${index + 1}）`);
+        push("动作承接", spatial.continuity);
         push("光影", cut.lighting);
         const [from, to] = cut.beats || [];
         const spoken = Number.isInteger(from) && Number.isInteger(to) ? beats.slice(from - 1, to).filter((beat) => beat.kind === "line") : [];
@@ -403,25 +455,107 @@ function validateCanvas(args) {
     if (manifest.app !== "infinite-canvas" || !Array.isArray(manifest.projects) || !manifest.projects.length) fail("projects.json 不是无限画布项目包。");
     const project = manifest.projects[0].project;
     const nodes = project?.nodes || [];
-    const h3 = nodes.filter((node) => node.type === "video" && node.title.endsWith(" · H3 视频"));
-    const seedance = nodes.filter((node) => node.type === "video" && node.title.endsWith(" · 豆包 Seedance 视频"));
-    const keyframes = nodes.filter((node) => node.type === "image" && / · 关键帧 \d+$/.test(node.title));
+    const h3 = nodes.filter((node) => ["video", "config"].includes(node.type) && node.title.endsWith(" · H3 视频"));
+    const seedance = nodes.filter((node) => ["video", "config"].includes(node.type) && node.title.endsWith(" · 豆包 Seedance 视频"));
+    const keyframes = nodes.filter((node) => ["image", "config"].includes(node.type) && / · 关键帧 \d+$/.test(node.title));
     if (!h3.length || h3.length !== seedance.length) fail("H3 与豆包 Seedance 视频节点数量不一致。");
-    if (seedance.some((node) => !node.metadata?.prompt?.includes("【镜头1】") || !node.metadata?.prompt?.includes("【约束】"))) fail("存在不完整的豆包 Seedance 提示词。");
-    if (keyframes.some((node) => /场景一致性锚点|光照状态：|保持已连接的写实场景/.test(node.metadata?.prompt || ""))) fail("关键帧中混入了不应追加的场景说明。");
+    if (seedance.some((node) => { const prompt = node.metadata?.composerContent ?? node.metadata?.prompt ?? ""; return !prompt.includes("【镜头1】") || !prompt.includes("【约束】"); })) fail("存在不完整的豆包 Seedance 提示词。");
+    if (keyframes.some((node) => /场景一致性锚点|光照状态：|保持已连接的写实场景/.test(node.metadata?.composerContent ?? node.metadata?.prompt ?? ""))) fail("关键帧中混入了不应追加的场景说明。");
     const connectedNodeIds = new Set(project.connections.flatMap((connection) => [connection.fromNodeId, connection.toNodeId]));
     const unlinkedReferences = nodes.filter((node) => node.type === "image" && /^(场景|道具|角色锚点|角色视图|色卡) ·/.test(node.title) && !connectedNodeIds.has(node.id));
     if (unlinkedReferences.length) fail(`存在 ${unlinkedReferences.length} 个未连线的参考图片节点：${unlinkedReferences.map((node) => node.title).join("、")}`);
     const files = manifest.projects.flatMap((item) => item.files || []);
     const missing = files.filter((file) => !entries.has(file.path));
     if (missing.length) fail(`ZIP 缺少 ${missing.length} 个嵌入图片。`);
-    if (args.storyboard) {
+    const input = entries.has("source/canvas-input.json") ? JSON.parse(entries.get("source/canvas-input.json").toString("utf8")) : null;
+    if (input) {
+        if (![1, 2, 3].includes(input.version) || !entries.has(input.storyboard) || !Array.isArray(input.previz)) fail("ZIP 的源数据索引无效。");
+        if (input.version === 3 && (!entries.has(input.script) || !Array.isArray(input.constraints) || input.constraints.some((line) => typeof line !== "string"))) fail("ZIP 的剧本或视频约束索引无效。");
+        const storyboard = args.storyboard ? readJson(requiredPath(args, "storyboard")) : JSON.parse(entries.get(input.storyboard).toString("utf8"));
+        const script = input.version === 3 ? JSON.parse(entries.get(input.script).toString("utf8")) : null;
+        validateSpatialImport(project, entries, storyboard, input.previz, files, input.version, script, input.constraints);
+    } else if (args.storyboard) {
+        // 旧导出包没有空间交接索引，继续按原来的 cut.frame 规则验证。
         const storyboard = readJson(requiredPath(args, "storyboard"));
         const expected = storyboard.episodes.flatMap((episode) => (episode.segments || []).flatMap((segment) => segment.cuts.map((cut, index) => ({ title: `${segment.id} · 关键帧 ${index + 1}`, prompt: cut.frame }))));
         const mismatch = expected.find((frame) => nodes.find((node) => node.title === frame.title)?.metadata?.prompt !== frame.prompt);
         if (mismatch) fail(`关键帧与 storyboard 原文不一致：${mismatch.title}`);
     }
-    console.log(`通过：关键帧 ${keyframes.length} 张；H3 视频 ${h3.length} 条；豆包 Seedance 视频 ${seedance.length} 条；嵌入文件 ${files.length} 个。`);
+    console.log(`通过：关键帧节点 ${keyframes.length} 个；H3 视频 ${h3.length} 条；豆包 Seedance 视频 ${seedance.length} 条；嵌入文件 ${files.length} 个。`);
+}
+
+function validateSpatialImport(project, entries, storyboard, previzIds, files, version, script, constraints) {
+    const { nodes, connections } = project;
+    const segments = storyboardSegments(storyboard);
+    const unique = (title, type) => {
+        const matches = nodes.filter((node) => node.title === title && node.type === type);
+        if (matches.length !== 1) fail(`缺少或重复的画布节点：${title}`);
+        return matches[0];
+    };
+    const readEntry = (path) => {
+        if (!entries.has(path)) fail(`ZIP 缺少预演交付：${path}`);
+        return entries.get(path).toString("utf8");
+    };
+    if (new Set(previzIds).size !== previzIds.length || previzIds.some((sid) => !segments.has(sid))) fail("预演索引段号重复或不在当前分镜中。");
+    const handoffs = new Map(previzIds.map((sid) => {
+        const prefix = `source/previz/${sid}/`;
+        const handoff = { data: JSON.parse(readEntry(`${prefix}grid-input.json`)), prompt: readEntry(`${prefix}grid-prompt.txt`), brief: readEntry(`${prefix}grid-brief.md`) };
+        validateHandoff(handoff.data, segments.get(sid));
+        return [sid, handoff];
+    }));
+    for (const [sid, segment] of segments) {
+        const handoff = handoffs.get(sid);
+        if (unique(`${sid} · 站位与拍摄说明`, "text").metadata?.content !== spatialSummary(segment, handoff)) fail(`${sid} 的站位与拍摄说明丢失或与源数据不一致。`);
+        const frames = segment.cuts.map((cut, index) => {
+            const node = unique(`${sid} · 关键帧 ${index + 1}`, version >= 2 ? "config" : "image");
+            let prompt = keyframePrompt(segment, cut, index, handoff);
+            if (version >= 2) {
+                const incoming = connections.filter((edge) => edge.toNodeId === node.id).map((edge) => edge.fromNodeId);
+                const references = nodes.filter((item) => incoming.includes(item.id));
+                if (new Set(incoming).size !== incoming.length || references.length !== incoming.length || references.some((item) => item.type !== "image")) fail(`${node.title} 的参考图连线无效。`);
+                if (node.metadata?.generationMode !== "image" || node.metadata?.count !== 1 || node.metadata?.size !== "16:9") fail(`${node.title} 的生图配置不正确。`);
+                if (connections.some((edge) => edge.fromNodeId === node.id)) fail(`${node.title} 是生成配置，不能直接作为图片结果连接。`);
+                prompt = keyframeComposer(prompt, references);
+            }
+            if ((version >= 2 ? node.metadata?.composerContent : node.metadata?.prompt) !== prompt) fail(`关键帧的画面、空间、拍摄信息或参考引用与源数据不一致：${node.title}`);
+            return node.id;
+        });
+        if (version >= 2 && unique(`${sid} · 关键帧操作说明`, "text").metadata?.content !== keyframeInstructions(segment)) fail(`${sid} 的关键帧操作说明或图片顺序不正确。`);
+        if (version === 3 && unique(`${sid} · 视频操作说明`, "text").metadata?.content !== videoInstructions(segment)) fail(`${sid} 的视频操作说明或参考图编号不正确。`);
+        for (const label of ["H3", "豆包 Seedance"]) {
+            const video = unique(`${sid} · ${label} 视频`, version === 3 ? "config" : "video");
+            const incoming = connections.filter((edge) => edge.toNodeId === video.id).map((edge) => edge.fromNodeId);
+            const invalid = version >= 2 ? incoming.length !== 0 : incoming.length !== frames.length || incoming.some((id, index) => id !== frames[index]);
+            if (invalid) fail(`${video.title} 的关键帧引用不正确；组合节点需要先生成图片，再连接选定结果。`);
+            if (version === 3) {
+                const seconds = String(Math.max(1, Math.round(segment.cuts.reduce((total, cut) => total + Number(cut.seconds || 0), 0))));
+                if (video.metadata?.generationMode !== "video" || video.metadata?.seconds !== seconds || video.metadata?.size !== "16:9" || video.metadata?.videoMode !== "reference") fail(`${video.title} 的视频模式、时长或画幅不正确。`);
+                const episode = storyboard.episodes.find((episode) => episode.segments?.some((item) => item.id === sid));
+                const scene = script.episodes?.find((item) => item.ep === episode.ep)?.scenes?.[segment.sceneIndex - 1];
+                if (!scene) fail(`${sid} 的视频提示词无法映射到归档剧本场次。`);
+                const prompt = label === "H3" ? segment.h3Prompt : seedancePrompt(segment, scene, constraints, handoff);
+                if (video.metadata?.composerContent !== prompt || unique(`${sid} · ${label} 提示词`, "text").metadata?.content !== prompt) fail(`${video.title} 的组合提示词或原文与源数据不一致。`);
+                if (connections.some((edge) => edge.fromNodeId === video.id)) fail(`${video.title} 尚未生成结果，不应存在输出连线。`);
+            }
+        }
+        if (!handoff) continue;
+        const gridText = unique(`${sid} · 预演宫格提示词`, "text");
+        const grid = unique(`${sid} · 预演宫格生图`, "config");
+        if (gridText.metadata?.content !== handoff.prompt) fail(`${sid} 的预演宫格原始提示词发生变化。`);
+        const references = handoff.data.panels.filter((panel) => panel.reference != null).map((panel) => {
+            const node = unique(`${panel.shot} · 预演参考图`, "image");
+            if (!files.some((file) => file.storageKey === node.metadata?.storageKey)) fail(`${panel.shot} 的预演参考图没有嵌入 ZIP。`);
+            const outgoing = connections.filter((edge) => edge.fromNodeId === node.id);
+            if (outgoing.length !== 1 || outgoing[0].toNodeId !== grid.id) fail(`${panel.shot} 的预演参考图没有仅连接到对应宫格。`);
+            return { shot: panel.shot, id: node.id };
+        });
+        const prompt = gridComposer(handoff.prompt, references);
+        if (grid.metadata?.prompt !== prompt || grid.metadata?.composerContent !== prompt || grid.metadata?.generationMode !== "image") fail(`${sid} 的预演宫格生图配置与交付不一致。`);
+        const expected = [gridText.id, ...references.map((reference) => reference.id)];
+        const incoming = connections.filter((edge) => edge.toNodeId === grid.id).map((edge) => edge.fromNodeId);
+        if (incoming.length !== expected.length || incoming.some((id, index) => id !== expected[index])) fail(`${sid} 的预演宫格参考连线不正确，或混入了交付之外的参考图。`);
+        if (connections.some((edge) => edge.fromNodeId === grid.id)) fail(`${sid} 的整张宫格不能直接作为关键帧或视频参考。`);
+    }
 }
 
 function writeStoredZip(entries) {
@@ -523,7 +657,11 @@ const CRC_TABLE = (() => {
     return table;
 })();
 
-main();
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+    try { main(); } catch (error) { fail(error.message); }
+}
+
+export { buildCanvas, writeStoredZip, readStoredZip };
 
 function required(args, key) {
     if (!args[key] || args[key] === true) fail(`缺少 --${key} 参数。`);
@@ -537,7 +675,7 @@ function requiredPath(args, key) {
 }
 
 function readJson(path) {
-    try { return JSON.parse(readFileSync(path, "utf8")); } catch (error) { fail(`无法读取 JSON：${path}（${error.message}）`); }
+    try { return JSON.parse(readFileSync(path, "utf8").replace(/^\uFEFF/, "")); } catch (error) { fail(`无法读取 JSON：${path}（${error.message}）`); }
 }
 
 function titleFromFile(path) {
@@ -562,5 +700,5 @@ function fail(message) {
 }
 
 function printHelp() {
-    console.log(`用法：\n  node export-infinite-canvas.mjs export --storyboard <storyboard.json> --script <script.json> --art <art.json> --cast <cast.json> --out <canvas.zip> [--images <目录>] [--title <画布标题>] [--project-id <项目标识>] [--constraints <文本文件>] [--no-character-views]\n  node export-infinite-canvas.mjs validate --zip <canvas.zip> [--storyboard <storyboard.json>]`);
+    console.log(`用法：\n  node export-infinite-canvas.mjs export --storyboard <storyboard.json> --script <script.json> --art <art.json> --cast <cast.json> --out <canvas.zip> [--previz <预演交付目录>] [--images <目录>] [--title <画布标题>] [--project-id <项目标识>] [--constraints <文本文件>] [--no-character-views]\n  node export-infinite-canvas.mjs validate --zip <canvas.zip> [--storyboard <storyboard.json>]`);
 }
