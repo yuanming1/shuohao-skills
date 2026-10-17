@@ -18,7 +18,7 @@ import {
 } from './core.mjs';
 import {
   QWEN_SIZES, codexStdin, configMissing, fillTemplate, loadConfig, maskConfig, modelKind, openaiGenerate, openaiRequest,
-  parseEnv, qwenEndpoint, qwenGenerate, qwenWorkflow,
+  parseEnv, quoteShellArg, qwenEndpoint, qwenGenerate, qwenWorkflow,
 } from './models.mjs';
 import { renderHtml, safeName } from './character-refs.mjs';
 import { BUILTIN, UI, fmt, uiFor, uiMissing, uiTemplate } from './i18n.mjs';
@@ -336,8 +336,14 @@ eq(nounOf(16, 'female'), 'young woman', '十六岁女性叫 young woman');
   ok(openaiRequest({ text: 'T', negative: 'N', ratio: '4:5', refs: [f1] }, { ...o, model: 'gpt-image-1' }).form.get('input_fidelity') === 'high', '老模型 gpt-image-1 传 input_fidelity=high');
   const s = codexStdin({ text: 'T', negative: 'N', ratio: '4:5', refs: ['a', 'b'] });
   ok(s.includes('4:5 aspect ratio') && s.includes('image 2 is a close-up of the face') && s.includes('./out.png'), 'codex：比例写进提示词、说明两张参考图');
-  eq(fillTemplate("tool --p {prompt_file} --r {refs} --o {out} {missing}", { prompt_file: "/t/it's.txt", refs: ['/a b.png', '/c.png'], out: '/o.png' }),
+  eq(fillTemplate("tool --p {prompt_file} --r {refs} --o {out} {missing}", { prompt_file: "/t/it's.txt", refs: ['/a b.png', '/c.png'], out: '/o.png' }, 'linux'),
     "tool --p '/t/it'\\''s.txt' --r '/a b.png' '/c.png' --o '/o.png' {missing}", '命令模板：全部加引号，未知占位符原样保留');
+  eq(fillTemplate('tool --p {prompt_file} --r {refs} --o {out}', { prompt_file: "/t/it's.txt", refs: ['/a b.png', '/c.png'], out: '/o.png' }, 'win32'),
+    `tool --p ^"/t/it's.txt^" --r ^"/a^ b.png^" ^"/c.png^" --o ^"/o.png^"`,
+    'Windows 命令模板按 cmd.exe 规则引用路径与空格');
+  eq(quoteShellArg('%PATH%\r\n& calc "x"', 'win32'), '^"^%PATH^%^ ^&^ calc^ \\^"x\\^"^"',
+    'Windows 参数转义环境变量、换行、命令分隔符与双引号，提示词不能逃出参数边界');
+  assert.throws(() => quoteShellArg('x\0y', 'win32'), /NUL/); passed++;
   assert.throws(() => modelKind('midjourney'), /不认识/); passed++;
   eq(modelKind('custom:mine'), 'custom', '自定义模型');
   const c = loadConfig(join(TMP, 'none.json'));

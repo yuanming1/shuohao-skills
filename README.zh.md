@@ -8,11 +8,26 @@
 
 # shuohao-skills
 
-**面向各类 Agent 的 AI 短剧制作 skill 集合**：从一本小说到直接交给生成管线的制作素材——拆角色、排大纲、出场景与道具设定、写剧本、切分镜。每个 skill 都是自包含目录，任何能够读取 `SKILL.md` 并执行随附脚本的 Agent 都可以使用；Claude Code 和 Codex 只是其中两个运行示例，并非使用前提。
+**面向各类 Agent 的 AI 短剧制作 skill 集合**：从一本小说到直接交给生成管线的制作素材——排大纲、拆角色、出场景与道具设定、写剧本、排开场站位、切分镜。每个 skill 都是自包含目录，任何能够读取 `SKILL.md` 并执行随附脚本的 Agent 都可以使用；Claude Code 和 Codex 只是其中两个运行示例，并非使用前提。
 
-整条管线长这样——**改编大纲收敛结构，剧本、场景、角色三者同步迭代，分镜只做输出不做新决定**：
+仓库目前有 **7 个 skill：6 个制作阶段，加上可独立使用的角色参考图生成**。改编大纲收敛结构，角色、美术、剧本同步迭代；开场站位在分镜之前确定每场人物的位置。
 
-<img src="assets/pipeline.webp" alt="AI 短剧制作流程图" width="680">
+```mermaid
+flowchart TD
+    novel[小说原文] --> outline[novel-outline · 改编大纲]
+    outline --> characters[novel-characters · 角色设定]
+    outline --> art[novel-art · 美术设定]
+    outline --> script[novel-script · 剧本]
+    characters <--> art
+    art <--> script
+    script <--> characters
+    characters -. 角色设定 .-> refs[character-refs · 角色参考图]
+    art --> staging[novel-staging · 开场站位]
+    script --> staging
+    staging -->|复制开场走位句| storyboard[novel-storyboard · 分镜]
+    refs -. 参考图片 .-> storyboard
+    storyboard --> production[视频投产包]
+```
 
 | Skill | 做什么 |
 | --- | --- |
@@ -21,11 +36,12 @@
 | [**character-refs**](skills/character-refs) | 给任何故事里的角色**真出**参考图（不限小说，自己原创的故事也行）：一段话描述角色，拆字段、补全、确认后先出正面全身锚点，大头照、90° 侧面、背面、细节图都只参考这张锚点，按需分档。每张图带标识、可单独重出，过期自动标出。支持 Qwen Image（ComfyUI）、codex 出图、GPT Image 2 API、自定义命令 |
 | [**novel-art**](skills/novel-art) | 给 AI 短剧出美术设定集（场景 + 叙事道具 + 全局色卡）：一致性锚点、光照与状态变体、尺度参照、无人无手白底提示词；色卡 + 材质 DNA + 光照 DNA 一部剧一个色调规范，下游挂参考用。吃 outline.json 预填清单，12 道质量门全部脚本检查 |
 | [**novel-script**](skills/novel-script) | 给 AI 短剧写剧本：场次 + 节拍流（动作与台词交替），逐集时长按语速确定性折算，钩子前 3 拍冷开场兑现是门，台词本按角色聚合带音色提示词直接对接 TTS。10 道质量门全部脚本检查 |
+| [**novel-staging**](skills/novel-staging) | 给 AI 短剧的每一场排开场站位：先从场景图里认出能站能坐的东西、推算到俯视平面上，再按剧本排谁在哪件东西的哪一侧、坐还是站、面朝哪，程序写出开场走位句交给分镜照抄；报告是能拖动调整的俯视平面，改完导出就是新的 staging.json。8 道质量门全部脚本检查 |
 | [**novel-storyboard**](skills/novel-storyboard) | 给 AI 短剧出分镜：段（一次生成 ≤15 秒）→ 分镜（2–5 秒硬门）→ 分镜图（主图钉 0.00 秒、子图钉各自切点），MiniMax H3 提示词的对齐指令与切点时刻逐字对账；分镜图拿设定图当参考图真出图，export 一键出 H3 / Seedance 投产包。18 道质量门全部脚本检查 |
 | [**seedance-fantasy-ultimate-prompt**](skills/seedance-fantasy-ultimate-prompt) | 生成修仙玄幻大招的 Seedance 2.0 提示词：围绕一次技能释放生成 15 秒单段成品，固定输出标准与强化两条，九大属性招式库与国漫级设计语言库按索引调用，带反模板化自检 |
 | [**seedance-combat-prompt**](skills/seedance-combat-prompt) | 生成 Seedance 2.0 二次元打戏提示词：15 秒标准分镜，内置九角色武学体系、三十条铁律、十五种运镜与六册兵器技法资料库，同组合招式禁止重复 |
 
-**五段管线 skill 的报告都支持中英双语界面**：默认中文，`render --lang en` 出全英文报告（数据内容保持原文）。character-refs 的报告同样内置中英日界面，其他语言现场翻译。
+**六个制作阶段的报告都支持中英双语界面**：默认中文，`render --lang en` 出全英文报告（数据内容保持原文）。character-refs 的报告同样内置中英日界面，其他语言现场翻译。
 
 ## AI 短剧交流社群
 
@@ -35,9 +51,30 @@
 
 <img src="assets/wechat.png" alt="烁皓微信二维码" width="180">
 
-## 合成一张单页
+## 开场站位：输入、输出与分镜交接
 
-五段的报告可以合成一张单页，左侧导航切换——**有哪几段就出哪几个面板**：
+`novel-staging` 放在剧本之后、分镜之前。必须提供 `script.json`，读取每场的出场人物和剧情；建议同时提供 `art.json`、`outline.json` 和场景图片，分别补充地点设定、人物名称，以及画面中实际存在的桌椅、门窗等。没有场景图片时，可以按美术设定推算，但会标成草稿。输入文件可以来自任何制作方式，不要求安装其他 skill。
+
+| 输出 | 内容 |
+| --- | --- |
+| `staging.json` | 每场人物开场是否在场、对应物件、方位、位置、坐站、朝向，以及群演人数与位置 |
+| `staging.md`（可选） | 按需导出的地点清单、人物站位表和开场走位句 |
+| **`staging-report.html`（默认）** | HTML 工具报告：拖动调整俯视站位，检查实时更新，修改后导出 JSON |
+| `blocking` 命令输出 | 每场一句开场走位，交给分镜每场第一段使用 |
+
+Agent 负责识别场景图片并安排站位；随附的 Node.js 工具负责预填数据、检查 8 道质量门、渲染报告和生成走位句。默认向用户交付 HTML 工具报告，在本地浏览器打开；JSON 作为工作数据保存，Markdown 仅按需导出。可以从仓库根目录直接体验完整样例：
+
+```bash
+node skills/novel-staging/scripts/novel-staging.mjs validate skills/novel-staging/examples/渡口-staging.json --script skills/novel-staging/references/test-fixtures/upstream/渡口-script.json --art skills/novel-staging/references/test-fixtures/upstream/渡口-art.json
+node skills/novel-staging/scripts/novel-staging.mjs render skills/novel-staging/examples/渡口-staging.json > staging-report.html
+node skills/novel-staging/scripts/novel-staging.mjs blocking skills/novel-staging/examples/渡口-staging.json
+```
+
+**分镜目前不会自动读取 `staging.json`。**需要把确认后的开场走位句交给 Agent，要求复制到对应场景第一段的 `blocking`。这一阶段输出站位数据与报告，不生成图片或视频。新建站位方案的完整步骤见 [skill 使用说明](skills/novel-staging)。
+
+## 合成五个阶段的报告
+
+合成器目前支持**大纲、角色、美术、剧本、分镜**，尚未包含站位报告和 character-refs 图册。这五个阶段的报告可以合成一张单页，左侧导航切换——**支持的阶段中，有哪几个就出哪几个面板**：
 
 ```bash
 node scripts/report.mjs --from <demo目录> --out report.html
@@ -59,7 +96,7 @@ node scripts/report.mjs --from <demo目录> --out report.html
 node scripts/report-selftest.mjs   # 92 项断言，不起浏览器
 ```
 
-丢一本小说进去，出这五套：
+六个制作阶段的报告预览：
 
 **novel-outline · 短剧改编大纲**
 
@@ -76,6 +113,10 @@ node scripts/report-selftest.mjs   # 92 项断言，不起浏览器
 **novel-script · 剧本（时长仪表 + 分集剧本 + 台词本）**
 
 ![剧本报告](skills/novel-script/assets/report.webp)
+
+**novel-staging · 开场站位（俯视平面能拖动调整，改完导出）**
+
+![站位报告](skills/novel-staging/assets/report.webp)
 
 **novel-storyboard · 分镜（分镜节奏带 + 主/子分镜图为 skill 实际生成 + H3 提示词）**
 
@@ -98,12 +139,12 @@ cd shuohao-skills
 安装脚本目前会检测 Claude Code 和 Codex，并为它们创建**软链接**——`git pull` 之后立刻生效，不需要重新安装。Skill 本身不依赖这两个运行时；其他 Agent 可以把对应 skill 目录复制或链接到自己的 skill 目录，也可以直接加载其中的 `SKILL.md`。
 
 ```bash
-./scripts/install.sh novel-characters   # 只装某一个
-./scripts/install.sh --codex            # 只装到 codex
+./scripts/install.sh novel-characters   # 只安装某一个
+./scripts/install.sh --codex            # 只安装到 codex
 ./scripts/install.sh --uninstall        # 取消软链
 ```
 
-不想用脚本就自己链：
+也可以手动创建软链接：
 
 ```bash
 AGENT_SKILLS_DIR=/path/to/your-agent/skills
@@ -152,7 +193,7 @@ for f in skills/*/scripts/selftest.mjs; do node "$f"; done
 
 ## 端到端 demo 工作目录约定
 
-把一本小说从头跑完五段（角色 → 大纲 → 美术 → 剧本 → 分镜），会产出大量 `*.json` / `*.md` / `*-report.html`。**不要平铺在根目录**，按五个 skill 各建一个目录归档，一眼对应流水线五段：
+把一本小说完成六个制作阶段（大纲 → 角色／美术／剧本迭代 → 开场站位 → 分镜），会产出大量 `*.json` / `*.md` / `*-report.html`。**不要平铺在根目录**，按六个 skill 各建一个目录归档：
 
 ```
 <demo>/
@@ -160,6 +201,7 @@ for f in skills/*/scripts/selftest.mjs; do node "$f"; done
 ├── characters/    ← novel-characters 产出：<剧>-cast.json / .md / -report.html
 ├── art/           ← novel-art 产出：<剧>-art.json / .md / -report.html
 ├── script/        ← novel-script 产出：<剧>-script.json / .md / -report.html
+├── staging/       ← novel-staging 产出：staging-report.html（主交付）+ staging.json；Markdown 按需导出
 ├── storyboard/    ← novel-storyboard 产出：<剧>-storyboard.json / .md / -report.html
 │   ├── manifest.json  ← export 产出
 │   ├── E01-01/        ← export 的分镜投产包，每段一个文件夹（prompt.md + f1..fN.png）
@@ -171,7 +213,7 @@ for f in skills/*/scripts/selftest.mjs; do node "$f"; done
 
 约定要点：
 
-- **每个 skill 一个目录**，装它自己的 `json` / `md` / `html` 三件套，加新角色/场景只往对应目录放，不污染根目录
+- **每个 skill 一个目录**，存放它自己的 `json` / `md` / `html` 三件套，加新角色/场景只往对应目录放，不污染根目录
 - **分镜的 `manifest.json` 与 `E01-0x/` 投产包一起归 `storyboard/`**，就是 `export --out storyboard` 的原样产出。**段文件夹不要再往下收一层**（例如收进 `segments/`）：分镜报告里的图走相对路径 `<段号>/f<切序>.png`，默认要求报告 html 与段文件夹同级（放在别处就用 `render --frames <目录>` 指过去），多套一层目录又不指，报告里的图会**静默**全变成「未生成」占位——实测把 10 个段文件夹移进 `segments/` 之后，内嵌图从 2 张变 0 张，报告不会报错
 - **报告 HTML 与生成的图/视频可由 `render` 重跑再生**——进版本控制时建议只提交 `json` / `md` / `docs` / `scripts`，报告 HTML 和分镜 `png` 用 `.gitignore` 排除，保持仓库轻量
 - 用法类文档（如各报告的使用说明）放 `docs/`，与 skill 自动生成的产物分开，方便单独维护
