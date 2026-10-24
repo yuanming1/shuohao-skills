@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, extname, resolve } from "node:path";
+import { SHOT_SIZES } from "./input-contract.mjs";
 
 const MODES = new Set(["locked-storyboard", "locked-blocking-grid"]);
 const LABELS = { size: "景别", lens: "焦距", cameraPosition: "机位", composition: "构图", eyeline: "视线", focus: "焦点" };
@@ -118,13 +119,14 @@ export function gridComposer(prompt, references) {
     return `${prompt}\n\n【预演交付中的参考图片对应】\n${references.map((reference) => `${reference.shot}：@[node:${reference.id}]`).join("\n")}\n每张参考图片只对应标明的镜号；未指定参考图片的镜头仍按原文生成。`;
 }
 
-function viewLines(view) {
-    return Object.entries(LABELS).flatMap(([field, label]) => text(view[field]) ? [`${label}：${field === "size" ? SIZES[view[field]] || view[field] : text(view[field])}`] : []);
+function viewLines(view, version = 4) {
+    return Object.entries(LABELS).flatMap(([field, label]) => text(view[field]) ? [`${label}：${field === "size" ? (version >= 4 ? SHOT_SIZES.get(view[field]) : SIZES[view[field]]) || view[field] : text(view[field])}`] : []);
 }
 
-export function keyframePrompt(segment, cut, index, handoff) {
+export function keyframePrompt(segment, cut, index, handoff, version = 4) {
+    if (version >= 4) return String(cut.frame || "");
     const { opening, view, continuity } = spatialCut(segment, cut, index, handoff);
-    const lines = viewLines(view);
+    const lines = viewLines(view, version);
     // 承接备注的动作、结束与接镜留在说明节点，不把终态提前写入静帧。
     const start = continuity.match(/(?:^|[；;\n])\s*起始\s*[：:]\s*([\s\S]*?)(?=[；;\n]\s*(?:动作|结束|接镜)\s*[：:]|$)/)?.[1]?.trim();
     if (!opening && !lines.length && !start) return String(cut.frame || "");
@@ -136,7 +138,7 @@ export function keyframePrompt(segment, cut, index, handoff) {
     return blocks.join("\n\n");
 }
 
-export function spatialSummary(segment, handoff) {
+export function spatialSummary(segment, handoff, version = 4) {
     const opening = text(handoff?.data?.planning?.opening) || text(segment.blocking);
     const blocks = [`${segment.id} · 站位与拍摄说明`, "这是导入的空间与拍摄安排，尚未验证实际几何、图像或动作连续性。"];
     if (opening) blocks.push(`【开场站位】\n${opening}`);
@@ -144,7 +146,7 @@ export function spatialSummary(segment, handoff) {
     segment.cuts.forEach((cut, index) => {
         const details = spatialCut(segment, cut, index, handoff);
         const end = time + Number(cut.seconds);
-        const lines = [`【镜头 ${index + 1} · ${time.toFixed(3)}–${end.toFixed(3)} 秒】`, `切点画面：${cut.frame}`, ...viewLines(details.view)];
+        const lines = [`【镜头 ${index + 1} · ${time.toFixed(3)}–${end.toFixed(3)} 秒】`, `切点画面：${cut.frame}`, ...viewLines(details.view, version)];
         if (details.continuity) lines.push(`动作承接（完整原文）：${details.continuity}`);
         if (details.action) lines.push(`视频动作（不等于静帧状态）：${details.action}`);
         blocks.push(lines.join("\n"));

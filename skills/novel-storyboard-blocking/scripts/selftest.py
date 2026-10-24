@@ -36,7 +36,7 @@ class BlockingTests(unittest.TestCase):
         self.package = blocking.load_json(FIXTURE)
         self.board = source_board(self.package)
         self.segment = self.board['episodes'][0]['segments'][0]
-        self.temp = tempfile.TemporaryDirectory(prefix='storyboard-blocking-')
+        self.temp = tempfile.TemporaryDirectory(prefix='novel-storyboard-blocking-')
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.output = self.root / 'output'

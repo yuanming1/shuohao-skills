@@ -2,9 +2,15 @@
 [![English](https://img.shields.io/badge/English-f2e3e3?style=for-the-badge&labelColor=f2e3e3&color=b07070)](README.en.md)
 [![关注作者 X](https://img.shields.io/badge/%E5%85%B3%E6%B3%A8%E4%BD%9C%E8%80%85-%40eternityspring-b07070?style=for-the-badge&labelColor=8b1a1a&logo=x&logoColor=f2e3e3)](https://x.com/eternityspring)
 
-# novel-storyboard
+# novel-storyboard · 分镜初稿
+
+**本组第 01 步，调用使用 `$novel-storyboard`。** 推荐顺序为 01 分镜初稿 → 02 站位与空间 → 03 情绪与镜头增强 → 04 动作与连续状态。02–04 按需执行，每一步承接上一轮最新分镜；已有初稿时可以直接进入后续修订。编号只用于显示与使用指引，本技能可独立使用。
 
 **v2.0.1（fork）：切完镜先规划动作承接。** 每切用已有 `cut.note` 写起始、动作、结束、接镜四段短句，`frame` / `shot` / `h3Prompt` 共用这份安排；Markdown / HTML 报告展示承接备注、缺失标注待人工复核，并在页首声明结构门不验证动作语义。不新增 JSON 字段、不加门，写法见 `references/continuity.md`。
+
+**打戏自动进入按需分支。** 分段之前识别剧本中的连续攻防、追击反击、摔投脱身及兵器／法术交锋，先编排完整交锋再拆生成段，跨段继承持物、防守与动作终态。对峙、单次接触和普通追逐继续常规分镜；交锋结束后退出分支。方法已经内化在本技能的 [打戏编排资料](references/combat-direction.md)，无需另外调用或安装技能，沿用原有字段、提示词协议与 18 道结构门。自有样例先确定 [故事](examples/盐仓脱围-story.md)，再展示 [分支编排](examples/盐仓脱围-combat.md)。
+
+**打戏交付逐项检查。** [C01–C12 检查标准](references/combat-review.md) 明确通过条件、退回例子及待核实的使用边界，覆盖故事依据、攻防、距离、占用、受力、防守、节奏、承接、提示词、摄影和声效。全部适用项目与结构校验通过后才能声明相应范围文本通过；成图与成片另以实际生成结果验证。
 
 给 AI 短剧出**分镜**：把 novel-script 的节拍流切成可以直接下单给视频模型的生成任务单。这是管线里第一个直接面对视频模型的层，前提刻在骨子里：**镜头是生成出来的，多切一刀的成本几乎为零**，短剧观众的注意力节奏是 3 秒左右一切。所以结构是三层：
 
@@ -138,10 +144,17 @@ references/
   h3-prompt.md           H3 提示词写法规范（官方方法论内化版）
   storyboard-pass.md     切镜：分段规则、导演运镜手感、常见病
   continuity.md          动作承接：先规划起始/动作/结束/接镜，再写提示词
+  combat-direction.md    打戏分支：识别范围、完整交锋、跨段承接与复核
+  combat-review.md       打戏检查：C01–C12 通过条件、判定方式与问题记录
+  combat-techniques.md   按需资料：拳脚、身法、抓控与摔投
+  combat-weapons.md      按需资料：兵器、环境借力与既定仙侠能力
+  combat-camera-effects.md 打戏摄影、受击反馈与既定特效
   frame.md               分镜图的提示词与挂图合同
   report-style.md        报告的设计约定
 examples/
   渡口-storyboard.json    《渡口》第 1 集完整分镜（10 段 34 切认领 35 拍），全部质量门通过，也是自测夹具
+  盐仓脱围-story.md       打戏分支的自有故事，先确定人物目的与事件结果
+  盐仓脱围-combat.md      从故事进入分支，示范单手占用与两段动作承接
 assets/
   report.webp            报告截图
 ```

@@ -10,7 +10,7 @@
 
 **面向各类 Agent 的 AI 短剧制作 skill 集合**：从一本小说到直接交给生成管线的制作素材——排大纲、拆角色、出场景与道具设定、写剧本、排开场站位、切分镜。每个 skill 都是自包含目录，任何能够读取 `SKILL.md` 并执行随附脚本的 Agent 都可以使用；Claude Code 和 Codex 只是其中两个运行示例，并非使用前提。
 
-仓库目前有 **7 个 skill：6 个制作阶段，加上可独立使用的角色参考图生成**。改编大纲收敛结构，角色、美术、剧本同步迭代；开场站位在分镜之前确定每场人物的位置。
+主流程包含 **6 个制作阶段**，另有可独立使用的角色参考图生成和按需执行的分镜扩展。改编大纲收敛结构，角色、美术、剧本同步迭代；开场站位在分镜之前确定每场人物的位置。
 
 ```mermaid
 flowchart TD
@@ -24,9 +24,17 @@ flowchart TD
     characters -. 角色设定 .-> refs[character-refs · 角色参考图]
     art --> staging[novel-staging · 开场站位]
     script --> staging
-    staging -->|复制开场走位句| storyboard[novel-storyboard · 分镜]
+    staging -->|复制开场走位句| storyboard[novel-storyboard · 分镜初稿]
     refs -. 参考图片 .-> storyboard
     storyboard --> production[视频投产包]
+    storyboard -. 按需明确空间 .-> blocking[novel-storyboard-blocking-02 · 站位与空间]
+    blocking -. 按需增强表现 .-> enhance
+    blocking --> production
+    storyboard -. 按需增强表现 .-> enhance[novel-storyboard-enhance-03 · 情绪与镜头增强]
+    enhance --> production
+    enhance -. 动作与连续状态复核 .-> motion
+    storyboard -. 按需编排动作 .-> motion[novel-storyboard-motion-04 · 动作与连续状态]
+    motion --> production
 ```
 
 | Skill | 做什么 |
@@ -37,9 +45,31 @@ flowchart TD
 | [**novel-art**](skills/novel-art) | 给 AI 短剧出美术设定集（场景 + 叙事道具 + 全局色卡）：一致性锚点、光照与状态变体、尺度参照、无人无手白底提示词；色卡 + 材质 DNA + 光照 DNA 一部剧一个色调规范，下游挂参考用。吃 outline.json 预填清单，12 道质量门全部脚本检查 |
 | [**novel-script**](skills/novel-script) | 给 AI 短剧写剧本：场次 + 节拍流（动作与台词交替），逐集时长按语速确定性折算，钩子前 3 拍冷开场兑现是门，台词本按角色聚合带音色提示词直接对接 TTS。10 道质量门全部脚本检查 |
 | [**novel-staging**](skills/novel-staging) | 给 AI 短剧的每一场排开场站位：先从场景图里认出能站能坐的东西、推算到俯视平面上，再按剧本排谁在哪件东西的哪一侧、坐还是站、面朝哪，程序写出开场走位句交给分镜照抄；报告是能拖动调整的俯视平面，改完导出就是新的 staging.json。8 道质量门全部脚本检查 |
-| [**novel-storyboard**](skills/novel-storyboard) | 给 AI 短剧出分镜：段（一次生成 ≤15 秒）→ 分镜（2–5 秒硬门）→ 分镜图（主图钉 0.00 秒、子图钉各自切点），MiniMax H3 提示词的对齐指令与切点时刻逐字对账；分镜图拿设定图当参考图真出图，export 一键出 H3 / Seedance 投产包。18 道质量门全部脚本检查 |
+| [**novel-storyboard**](skills/novel-storyboard) | 分镜初稿：段（一次生成 ≤15 秒）→ 分镜（2–5 秒硬门）→ 分镜图提示词（主图钉 0.00 秒、子图钉各自切点），MiniMax H3 提示词的对齐指令与切点时刻逐字对账；交付画面提示词和参考图清单，export 一键出 H3 / Seedance 投产包。18 道质量门全部脚本检查 |
+| [**novel-storyboard-blocking-02**](skills/novel-storyboard-blocking/SKILL.md) | 按需补齐站位与空间：明确人物、机位、路径、遮挡及逐镜承接，同步关键帧与 H3 / Seedance 正文，可导出站位与分镜宫格提示词 |
+| [**novel-storyboard-enhance-03**](skills/novel-storyboard-enhance/SKILL.md) | 本阶段按需执行，调用后必须同时评估人物表演与摄影，既定特效增强可选；保护剧情、对白、镜号、时长和资产绑定，同步关键帧及 H3 / Seedance 正文。内置读取顺序、六道保护性程序门及独立语义复核，可单独复制 |
+| [**novel-storyboard-motion-04**](skills/novel-storyboard-motion) | 对已有分镜按需编排物品交接、身体接触与承重、施力和物理运动、跨镜动作承接，同步关键帧及 H3 / Seedance 正文。附只读对比工具，保护镜号、时长、节拍和协议绑定；物理合理性仍需语义复核 |
 | [**seedance-fantasy-ultimate-prompt**](skills/seedance-fantasy-ultimate-prompt) | 生成修仙玄幻大招的 Seedance 2.0 提示词：围绕一次技能释放生成 15 秒单段成品，固定输出标准与强化两条，九大属性招式库与国漫级设计语言库按索引调用，带反模板化自检 |
 | [**seedance-combat-prompt**](skills/seedance-combat-prompt) | 生成 Seedance 2.0 二次元打戏提示词：15 秒标准分镜，内置九角色武学体系、三十条铁律、十五种运镜与六册兵器技法资料库，同组合招式禁止重复 |
+
+## 分镜技能的编号与使用顺序
+
+编号加在显示名称末尾；实际调用名称与目录保持原样。推荐依次使用：
+
+| 顺序 | 实际调用 | 本步解决什么 |
+|---|---|---|
+| 01 分镜初稿 | `$novel-storyboard` | 根据剧本确定段落、镜号、时长、节拍与画面／视频提示词；已有合格初稿时可直接进入后续步骤。 |
+| 02 站位与空间 | `$novel-storyboard-blocking` | 按需明确人物站在哪里、摄影机在哪里、如何移动及遮挡关系。 |
+| 03 情绪与镜头增强 | `$novel-storyboard-enhance` | 调用后必须同时评估表演与摄影，按收益增强并说明保留理由；既定特效可选，空间明确后再细化表现。 |
+| 04 动作与连续状态 | `$novel-storyboard-motion` | 按需复核交接、接触、承重、物理运动与跨镜继承，再进入最终出图和视频导出。 |
+
+02–04 按项目问题选择，不要求全部执行；它们需要已有分镜，可以单独使用。每一步都读取上一轮最新修订稿，修订时保留原稿、另存副本，并同步关键帧描述及视频正文。后续改动影响空间或切镜时，返回核对对应安排，再复核受影响动作。
+
+可以直接这样提出任务：
+
+> 按 01 分镜初稿 → 02 站位与空间 → 03 情绪与镜头增强 → 04 动作与连续状态的顺序处理这份剧本；02–04 按需执行，每一步承接最新分镜，最后交付修订稿和检查结果。
+
+`novel-staging` 在 01 之前提供每场开场站位；需要额外预演时，完成本组修订后交给 `novel-previz`，需要画布投产包时再交给 `novel-to-canvas`。这些属于本组之外的制作阶段，不要求安装才能使用本组技能。
 
 **六个制作阶段的报告都支持中英双语界面**：默认中文，`render --lang en` 出全英文报告（数据内容保持原文）。character-refs 的报告同样内置中英日界面，其他语言现场翻译。
 

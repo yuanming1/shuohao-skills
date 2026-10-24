@@ -17,7 +17,7 @@
 
 **Agent-agnostic skills for AI short-drama production** — from a novel to shoot-ready material: character bibles, adaptation outlines, scene & prop bibles, screenplays, opening staging, and storyboards. Each skill is self-contained and works with any Agent that can read `SKILL.md` and run the bundled scripts; Claude Code and Codex are two supported examples, not requirements.
 
-The repository now contains **seven skills: six production stages plus standalone character reference generation**. The outline settles the adaptation; characters, art, and screenplay iterate together; staging fixes each scene's opening positions before storyboarding.
+The main workflow has **six production stages**, with standalone character reference generation and optional storyboard extensions. The outline settles the adaptation; characters, art, and screenplay iterate together; staging fixes each scene's opening positions before storyboarding.
 
 ```mermaid
 flowchart TD
@@ -34,6 +34,14 @@ flowchart TD
     staging -->|Copy opening blocking| storyboard[novel-storyboard]
     refs -. Reference images .-> storyboard
     storyboard --> production[Video production packs]
+    storyboard -. Optional blocking pass .-> blocking[novel-storyboard-blocking-02]
+    blocking -. Optional enhancement .-> enhance
+    blocking --> production
+    storyboard -. Optional enhancement .-> enhance[novel-storyboard-enhance-03]
+    enhance --> production
+    enhance -. Action and continuity review .-> motion
+    storyboard -. Optional motion pass .-> motion[novel-storyboard-motion-04]
+    motion --> production
 ```
 
 | Skill | What it does |
@@ -44,7 +52,29 @@ flowchart TD
 | [**novel-art**](skills/novel-art/README.en.md) | Art bibles for AI production (scenes + narrative props + global palette): consistency anchors, lighting & state variants, scale references, no-people/no-hands white plates; one palette + material/lighting DNA per show, attached as a downstream reference rather than pasted into prompts. Seeds from outline.json; all 12 quality gates script-checked |
 | [**novel-script**](skills/novel-script/README.en.md) | Screenwriting for AI short drama: scenes + beat flow (action beats alternating with dialogue lines), per-episode duration deterministically estimated from reading speed, a gated cold-open hook in the first 3 beats, a per-character line book with voice prompts that feeds straight into TTS. All 10 quality gates script-checked |
 | [**novel-staging**](skills/novel-staging/README.en.md) | Plans opening positions from the screenplay and scene images: each character’s seat or standing position, facing direction, opening presence, and extras. Produces staging.json, an editable top-view report, and opening blocking sentences for the storyboard. All 8 quality gates script-checked |
-| [**novel-storyboard**](skills/novel-storyboard/README.en.md) | Storyboarding for AI short drama: segments (one generation, ≤15s) → cuts (2–5s hard gate) → keyframes (master pinned at 0.00s, sub-frames at their cut marks), with MiniMax H3 prompt alignment and cut times audited verbatim; frames actually generated with the design sheets as references, plus one-command H3 / Seedance production packs. All 18 quality gates script-checked |
+| [**novel-storyboard**](skills/novel-storyboard/README.en.md) | Storyboard draft: segments (one generation, ≤15s) → cuts (2–5s hard gate) → keyframe prompts (master pinned at 0.00s, sub-frames at their cut marks), with MiniMax H3 prompt alignment and cut times audited verbatim. Delivers frame prompts and a reference manifest, plus one-command H3 / Seedance production packs. All 18 quality gates script-checked |
+| [**novel-storyboard-blocking-02**](skills/novel-storyboard-blocking/SKILL.md) | Optional blocking and space pass: character positions, camera placement, paths, occlusion and cut-to-cut handoffs. Synchronizes keyframe and H3 / Seedance text and exports blocking/storyboard grid prompts |
+| [**novel-storyboard-enhance-03**](skills/novel-storyboard-enhance/SKILL.md) | Optional stage for existing storyboards: both performance and camera review are required when invoked; established effects are optional. Preserves story, dialogue, timing and asset bindings; synchronizes keyframe and H3 / Seedance text, with six protective program gates and separate semantic review |
+| [**novel-storyboard-motion-04**](skills/novel-storyboard-motion) | Optional motion pass on an existing storyboard: prop handoffs, contact and weight transfer, forces, movement and action continuity. Revises keyframe descriptions and H3 / Seedance text; includes a read-only comparison tool that protects shot contracts and protocol bindings. Physical plausibility still requires semantic review |
+
+## Storyboard skill numbers and usage order
+
+Numbers are suffixes on display names. Invocation names and directory paths stay the same. Recommended order:
+
+| Order | Invoke | Purpose |
+|---|---|---|
+| 01 Storyboard draft | `$novel-storyboard` | Turn the screenplay into segments, cuts, durations, beat claims and frame/video prompts. An accepted draft can enter a later step directly. |
+| 02 Blocking and space | `$novel-storyboard-blocking` | As needed, clarify character positions, camera placement, movement paths and occlusion. |
+| 03 Performance and camera | `$novel-storyboard-enhance` | Once invoked, assess both performance and camera work, improving shots where needed and explaining retained choices; established effects are optional. |
+| 04 Motion and continuity | `$novel-storyboard-motion` | As needed, review handoffs, contact, weight, physical motion and state inheritance before final images and video export. |
+
+Steps 02–04 are optional, independently usable passes on an existing storyboard. Each consumes the latest revision. Preserve the previous file, save revisions separately and synchronize keyframe descriptions and video text. If a later change affects space or cuts, revisit that arrangement and then review the affected motion.
+
+Example request:
+
+> Process this screenplay in order: 01 storyboard draft → 02 blocking and space → 03 performance and camera → 04 motion and continuity. Run steps 02–04 as needed, pass the latest storyboard to each step, and deliver the revised files and review results.
+
+`novel-staging` supplies opening positions before step 01. After these revisions, use `novel-previz` if additional previsualization is needed, then `novel-to-canvas` if a canvas production package is required. These are separate production stages, not installation dependencies of this group.
 
 **All six pipeline skills render their reports in English too** — reports default to a Chinese UI; pass `--lang en` to `render` for a fully English report (data content stays as authored). character-refs ships Chinese, English and Japanese UIs too, and translates on the spot for other languages.
 

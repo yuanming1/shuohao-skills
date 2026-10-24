@@ -1,16 +1,18 @@
-# storyboard-blocking · 站位与分镜贯通
+# novel-storyboard-blocking-02 · 站位与空间
+
+**本组第 02 步，调用使用 `$novel-storyboard-blocking`。** 分镜初稿之后按需执行，空间明确后再进行 03 情绪与镜头增强、04 动作与连续状态复核；每一步承接最新分镜。编号只用于显示与使用指引，本技能可独立处理已有分镜。
 
 这是 fork 中新增的独立技能：给分镜补齐空间和机位安排，同步关键帧、Seedance 与 H3 正文，再交付“左侧站位图＋右侧分镜宫格”的完整出图提示词。
 
 ## 使用位置
 
-剧本与场景设定 → 分镜初稿 → **空间规划与提示词同步** → 站位宫格评审 → 关键帧与视频生成。
+剧本与场景设定 → 01 分镜初稿 → **02 空间规划与提示词同步** → 03 表现增强（按需）→ 04 动作与连续状态复核（按需）→ 最终宫格评审、关键帧与视频生成。
 
 让 Agent 使用本目录 [SKILL.md](SKILL.md)，并提供项目分镜、剧本以及已有场景资料。
 如果只是运行导出脚本，它不会自动补写空间或同步视频；字段缺失时会返回待补清单。
 
 ```bash
-python skills/storyboard-blocking/scripts/blocking.py export \
+python skills/novel-storyboard-blocking/scripts/blocking.py export \
   --storyboard 项目-storyboard.json --segment E01-02 --out ./previz
 ```
 
@@ -22,9 +24,9 @@ python skills/storyboard-blocking/scripts/blocking.py export \
 自有故事见 [雨棚取件](examples/雨棚取件-story.md)。样例交接包已经包含空间安排，可直接导出：
 
 ```bash
-python skills/storyboard-blocking/scripts/blocking.py export \
-  --plan skills/storyboard-blocking/examples/雨棚取件-plan.json --out ./previz
-node skills/storyboard-blocking/scripts/selftest.mjs
+python skills/novel-storyboard-blocking/scripts/blocking.py export \
+  --plan skills/novel-storyboard-blocking/examples/雨棚取件-plan.json --out ./previz
+node skills/novel-storyboard-blocking/scripts/selftest.mjs
 ```
 
 Node 自测入口默认在 Windows 使用 `python`，其他系统使用 `python3`；可通过 `STORYBOARD_BLOCKING_PYTHON` 指定解释器。
@@ -32,7 +34,7 @@ Node 自测入口默认在 Windows 使用 `python`，其他系统使用 `python3
 
 ## 与上游同步
 
-本次功能只增加 `skills/storyboard-blocking/`，不修改上游已有文件、默认流程或数据结构。
+本次功能只增加 `skills/novel-storyboard-blocking/`，不修改上游已有文件、默认流程或数据结构。
 既有安装脚本能够发现新增技能，也可以直接引用本目录的 `SKILL.md`。
 它可以单独复制，不导入其他技能代码；上游更新后如有数据兼容问题，只在本目录调整适配和自测。
 同步上游前按正常 Git 流程提交或暂存本地工作。未来上游新增同名目录时仍需处理冲突。

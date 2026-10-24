@@ -1,6 +1,6 @@
 # 预演导入
 
-交接约定依据 novel-previz 的普通宫格导出，以及既有站位宫格交付的 `locked-blocking-grid` 格式整理。导出器直接读取文件，不调用其他技能、Blender 或图片服务。
+交接约定依据 novel-previz 的普通宫格导出，以及 novel-storyboard-blocking 的 `locked-blocking-grid` 格式整理。导出器直接读取文件，不调用其他技能、Blender 或图片服务。
 
 ## 选择目录
 
@@ -12,21 +12,23 @@
 | --- | --- |
 | `grid-prompt.txt` | 原文文本节点与宫格生图配置；有参考图时仅在配置末尾增加镜号对应关系 |
 | `grid-brief.md` | 站位与拍摄说明中的交接原文 |
-| `planning.opening` / `segment.blocking` | 段落开场空间、关键帧空间背景、Seedance 人物关系 |
-| `planning.shots[].view` | 对应镜头的机位、构图、视线 |
-| `planning.shots[].continuity` / `cut.note` | 说明与 Seedance 保存完整承接；关键帧仅提取明确的 `起始：` 内容 |
+| `planning.opening` / `segment.blocking` | 说明节点中的开场空间、Seedance 人物关系；不再追加到关键帧 |
+| `planning.shots[].view` | 说明及 Seedance 对应镜头的机位、构图、视线 |
+| `planning.shots[].continuity` / `cut.note` | 说明节点保存完整承接，不作为生成指令 |
 | `planning.shots[].action` / `cut.shot` | 说明与 Seedance 视频动作 |
-| `cut.size/lens/cameraPosition/composition/eyeline/focus` | 说明及对应关键帧的拍摄信息 |
+| `cut.size/lens/cameraPosition/composition/eyeline/focus` | 说明及 Seedance 拍摄信息；关键帧直接消费最终 `frame` |
 | `panel.reference` | 嵌入 ZIP 的预演参考图片，连入该段宫格配置并标明对应镜号 |
 
 ## 支持的交接结构
 
-- `locked-storyboard`：顶层为 `mode`、`segment`、`layout`、`panels`。它没有单独的站位字段，空间与拍摄信息从 storyboard 补入说明和关键帧，原始宫格提示词保持不变。
+- `locked-storyboard`：顶层为 `mode`、`segment`、`layout`、`panels`。它没有单独的站位字段，空间与拍摄信息从 storyboard 补入说明和 Seedance，原始宫格提示词保持不变。
 - `locked-blocking-grid`：在上述结构上增加 `planning`，其中 `opening` 是开场站位，`shots` 保存逐镜拍摄安排。每条安排为 `shot`、`view`、`continuity`、`action`；`view` 为 `position`、`composition`、`eyeline`。
 - `layout` 包含 `columns`、`rows`、`aspect`；`aspect` 表示格内画幅，宫格整张说明页的生图画幅默认 16:9，可在画布修改。
 - 每个 panel 包含 `shot`、`time`、`size`、`frame`、`reference`。镜号沿用上游 `<段号>-f<序号>`；time 是两个十进制字符串，使用实际切点，不重新均分时长。
 
 导入前按段号、镜号、格数、时长、景别和画面原文逐项对账。站位宫格字段与 storyboard 的非空同名内容冲突时，先同步上游再导出，不静默挑选其中一版。这项检查不会理解自然语言内部的空间矛盾；例如同一原文同时出现“银包在手中”和“银包已在案上”，仍需要人工修正上游。
+
+表现增强或动作修订后重新核对预演交付。站位宫格还会逐镜核对机位、构图、视线、动作与承接原文；只有分镜字段为空时允许旧交付补充。普通宫格没有这些规划快照，无法自动发现仅修改 `shot`、声音或摄影字段导致的过期提示词，需要重新导出并复核对应宫格。程序通过不代表宫格里的自由文本已经同步。
 
 ## 参考图片与后续细化
 

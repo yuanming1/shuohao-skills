@@ -2,9 +2,15 @@
 [![English](https://img.shields.io/badge/English-8b1a1a?style=for-the-badge)](README.en.md)
 [![Follow on X](https://img.shields.io/badge/Follow-%40eternityspring-b07070?style=for-the-badge&labelColor=8b1a1a&logo=x&logoColor=f2e3e3)](https://x.com/eternityspring)
 
-# novel-storyboard
+# novel-storyboard · Storyboard draft
+
+**Step 01 in this group; invoke `$novel-storyboard`.** Recommended order: 01 draft → 02 blocking and space → 03 performance and camera → 04 motion and continuity. Steps 02–04 are optional and each uses the latest revised storyboard. An accepted draft can enter a later step directly. Numbers identify display names and workflow order; this skill remains independently usable.
 
 **v2.0.1 (fork): plan action continuity before writing prompts.** Each cut records its starting state, action, ending state and handoff in the existing `cut.note`; `frame`, `shot` and `h3Prompt` share that plan. Markdown / HTML reports show these notes, flag missing plans for manual review, and state up front that structural gates do not verify action semantics. No new JSON fields, no new gates; see `references/continuity.md`.
+
+**Combat uses an automatic, optional branch.** Before segmenting, identify continuous exchanges, pursuit with counterattacks, throws and escapes, or weapon and spell combat. Plan the full exchange first, then divide it into generation segments that preserve possession, defense and ending states. Standoffs, isolated contact and ordinary chases use normal storyboarding; exit the branch when the exchange ends. The [combat direction reference](references/combat-direction.md) and its supporting resources are local to this skill, with no additional skill invocation or installation required. Existing fields, prompt protocols and all 18 structural gates still apply. The original example establishes its [story](examples/盐仓脱围-story.md) before showing the [combat treatment](examples/盐仓脱围-combat.md).
+
+**Review every combat cut before delivery.** The [C01–C12 review criteria](references/combat-review.md) define acceptance conditions, rejection examples, missing-evidence decisions and issue records. They cover story authority, capabilities, exchanges, distance, possession, support, defense, timing, continuity, prompt alignment, camera clarity and audiovisual feedback. A scoped text review passes only when all applicable criteria and structural validation pass; generated images and video require inspection of the actual results.
 
 Storyboarding for AI short drama: turns novel-script's beat flow into a worklist you can hand straight to a video model. This is the first layer in the pipeline that talks directly to that model, and the premise is baked in: **shots are generated, so one more cut costs almost nothing** — and the short-drama attention span runs on ~3-second cuts. Hence a three-level structure:
 

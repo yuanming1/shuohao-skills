@@ -3,6 +3,7 @@ import { basename, extname, resolve } from "node:path";
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { loadPreviz, keyframePrompt, spatialSummary, spatialCut, storyboardSegments, validateHandoff, gridComposer } from "./previz-handoff.mjs";
+import { boardAspect, characterBindings, SHOT_SIZES as CURRENT_SIZES, CAMERA as CURRENT_CAMERA } from "./input-contract.mjs";
 
 const SHOT_SIZES = { wide: "全景", medium: "中景", close: "特写", extreme_close: "大特写" };
 const CAMERA = { "Static Shot": "固定镜头", "Tracking Shot": "跟拍", "Push In": "缓慢推镜", "Pull Out": "缓慢拉镜", "Pan Left": "左摇镜头", "Pan Right": "右摇镜头", "Tilt Up": "上摇镜头", "Tilt Down": "下摇镜头", "Handheld": "手持跟拍" };
@@ -46,30 +47,40 @@ function exportCanvas(args) {
     const script = readJson(input.script);
     const art = readJson(input.art);
     const cast = readJson(input.cast);
+    const outline = args.outline ? readJson(requiredPath(args, "outline")) : null;
+    if (outline) input.outline = resolve(args.outline);
     const imageDir = args.images ? resolve(args.images) : null;
+    const characterImageDir = args["character-images"] ? resolve(args["character-images"]) : null;
+    const characterSheetsOnly = Boolean(args["character-sheets-only"]);
     const title = String(args.title || `${titleFromFile(input.storyboard)} · 分镜投产画布`);
     const projectId = safeId(args["project-id"] || `${titleFromFile(input.storyboard)}-storyboard`);
     const constraints = args.constraints ? readFileSync(resolve(args.constraints), "utf8").split(/\r?\n/).map((line) => line.trim()).filter(Boolean) : [];
     const previz = args.previz ? loadPreviz(requiredPath(args, "previz"), storyboard) : new Map();
-    const packageData = buildCanvas({ storyboard, script, art, cast, sourcePaths: input, imageDir, title, projectId, constraints, includeCharacterViews: !args["no-character-views"], previz });
+    const packageData = buildCanvas({ storyboard, script, art, cast, outline, sourcePaths: input, imageDir, characterImageDir, characterSheetsOnly, title, projectId, constraints, includeCharacterViews: !args["no-character-views"], previz });
     writeFileSync(out, writeStoredZip(packageData.entries));
     console.log(`已导出：${out}`);
     console.log(`项目：${title}；关键帧组合节点 ${packageData.summary.keyframes} 个；H3 视频组合节点 ${packageData.summary.segments} 个；豆包 Seedance 视频组合节点 ${packageData.summary.segments} 个；嵌入参考图 ${packageData.summary.embeddedImages} 张。`);
+    console.log(`参考图片：角色 ${packageData.summary.characterImages} 张；场景光照 ${packageData.summary.sceneLightingImages} 张；场景与道具设定 ${packageData.summary.sheetImages} 张；预演 ${packageData.summary.previzImages} 张。`);
     console.log("选定关键帧结果后，连接到视频组合节点并按镜号依次插入 @ 引用；修改参考图后在组合节点再次开始生成。");
     console.log(`站位与拍摄说明 ${packageData.summary.segments} 段；预演宫格 ${previz.size} 段。`);
     if (args.previz && previz.size < packageData.summary.segments) console.log(`未提供预演宫格的段落使用 storyboard 中已有的空间与拍摄信息。`);
 }
 
-function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, title, projectId, constraints, includeCharacterViews, previz = new Map() }) {
+function buildCanvas({ storyboard, script, art, cast, outline, sourcePaths, imageDir, characterImageDir, characterSheetsOnly, title, projectId, constraints, includeCharacterViews, previz = new Map() }) {
     assertArray(storyboard.episodes, "storyboard.episodes");
     assertArray(script.episodes, "script.episodes");
     assertArray(art.scenes, "art.scenes");
-    assertArray(art.props, "art.props");
+    if (art.props !== undefined) assertArray(art.props, "art.props");
     assertArray(cast.characters, "cast.characters");
+    const aspect = boardAspect(storyboard);
+    storyboardSegments(storyboard); // 重复段号不能生成同名节点。
+    const bindings = characterBindings(cast, outline);
+    const characterIds = new Map([...bindings].map(([id, character]) => [character, id]));
 
     const now = new Date().toISOString();
     const scriptByEpisode = new Map(script.episodes.map((episode) => [episode.ep, episode]));
     const imageFiles = imageDir ? collectImageFiles(imageDir) : [];
+    const characterImageFiles = characterImageDir ? collectImageFiles(characterImageDir) : imageFiles;
     const nodes = [];
     const connections = [];
     const embeddedFiles = [];
@@ -107,9 +118,11 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
 
     const sceneReference = new Map();
     const propReference = new Map();
+    const assetTop = 200;
     let assetIndex = 0;
+    addNode({ type: "text", title: "场景与道具参考", position: { x: 0, y: 80 }, width: 600, height: 60, metadata: { content: "场景与道具参考", status: "success", fontSize: 20 } });
     const assetPosition = () => {
-        const position = { x: (assetIndex % 6) * 380, y: Math.floor(assetIndex / 6) * 300 };
+        const position = { x: (assetIndex % 6) * 380, y: assetTop + Math.floor(assetIndex / 6) * 300 };
         assetIndex += 1;
         return position;
     };
@@ -117,23 +130,33 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
     for (const scene of art.scenes) {
         const lightingNodes = new Map();
         (scene.lighting || []).forEach((lighting, index) => {
-            const stem = `${slug(scene.name)}-L${index + 1}-${slug(lighting.state)}`;
             const position = assetPosition();
-            const node = makeImageNode({ title: `场景 · ${scene.name} · ${lighting.state}`, x: position.x, y: position.y, prompt: lighting.prompt || scene.image?.prompt || "", imageFile: findImage(imageFiles, stem) });
-            lightingNodes.set(lighting.state, node.id);
+            const lightingImage = findImage(
+                imageFiles,
+                `${slug(scene.name)}-L${index + 1}-${slug(lighting.state)}`,
+                `${scene.id}-${String(index + 1).padStart(2, "0")}-${slug(lighting.state)}`,
+                `${scene.id}-L${index + 1}-${slug(lighting.state)}`,
+            );
+            const node = makeImageNode({ title: `场景 · ${scene.name} · ${lighting.state}`, x: position.x, y: position.y, prompt: lighting.prompt || scene.image?.prompt || "", imageFile: lightingImage });
+            lightingNodes.set(lighting.state, { id: node.id, hasImage: Boolean(lightingImage) });
         });
         const sheetPosition = assetPosition();
         const sheet = makeImageNode({ title: `场景 · ${scene.name} · 多视角设定图`, x: sheetPosition.x, y: sheetPosition.y, prompt: scene.image?.sheet || scene.image?.prompt || "", imageFile: findImage(imageFiles, `${slug(scene.name)}-sheet`) });
-        for (const lightingNodeId of lightingNodes.values()) addConnection(sheet.id, lightingNodeId);
+        for (const lightingNode of lightingNodes.values()) addConnection(sheet.id, lightingNode.id);
         sceneReference.set(scene.id, { lightingNodes, sheetId: sheet.id });
     }
 
-    for (const prop of art.props) {
+    for (const prop of art.props || []) {
         const stateNodes = [];
         (prop.states || []).forEach((state, index) => {
-            const stem = `${slug(prop.name)}-S${index + 1}-${slug(state.state)}`;
             const position = assetPosition();
-            const node = makeImageNode({ title: `道具 · ${prop.name} · ${state.state}`, x: position.x, y: position.y, prompt: state.prompt || prop.image?.prompt || "", imageFile: findImage(imageFiles, stem) });
+            const stateImage = findImage(
+                imageFiles,
+                `${slug(prop.name)}-S${index + 1}-${slug(state.state)}`,
+                `${prop.id}-${String(index + 1).padStart(2, "0")}-${slug(state.state)}`,
+                `${prop.id}-S${index + 1}-${slug(state.state)}`,
+            );
+            const node = makeImageNode({ title: `道具 · ${prop.name} · ${state.state}`, x: position.x, y: position.y, prompt: state.prompt || prop.image?.prompt || "", imageFile: stateImage });
             stateNodes.push(node.id);
         });
         const sheetPosition = assetPosition();
@@ -151,52 +174,82 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
     }
 
     const characterReference = new Map();
-    const characterStartX = 3400;
+    const characterColumns = characterSheetsOnly ? 5 : 3;
+    const characterBlockWidth = characterSheetsOnly ? 560 : 2040;
+    const characterBlockHeight = characterSheetsOnly ? 360 : 960;
+    const characterStartY = Math.max(2600, assetTop + Math.ceil(assetIndex / 6) * 300 + 500);
+    addNode({ type: "text", title: characterSheetsOnly ? "角色设定图" : "角色设定与视图", position: { x: 0, y: characterStartY - 140 }, width: 600, height: 60, metadata: { content: characterSheetsOnly ? "角色设定图" : "角色设定与视图", status: "success", fontSize: 20 } });
     for (let index = 0; index < cast.characters.length; index += 1) {
         const character = cast.characters[index];
+        const blockX = (index % characterColumns) * characterBlockWidth;
+        const blockY = characterStartY + Math.floor(index / characterColumns) * characterBlockHeight;
+        const characterId = characterIds.get(character);
+        const sheetImage = findImage(characterImageFiles, `${slug(character.name)}-sheet`) || findImage(imageFiles, `${slug(character.name)}-sheet`);
+        if (characterSheetsOnly) {
+            const characterSheet = makeImageNode({
+                title: `角色设定图 · ${character.name}`,
+                x: blockX,
+                y: blockY,
+                width: 480,
+                height: 270,
+                prompt: character.image?.sheet || character.image?.prompt || "",
+                size: "16:9",
+                imageFile: sheetImage,
+            });
+            if (characterId) characterReference.set(characterId, { masterId: characterSheet.id, viewNodeIds: new Map() });
+            continue;
+        }
         const core = characterCore(character.image?.prompt || "");
         const negative = String(character.image?.negativePrompt || "").trim();
-        const master = addNode({
-            type: "image",
+        const masterPrompt = withNegative(`${core} Front-facing full-length body, neutral standing pose, both shoulders and both feet fully visible, straight-on orthographic camera, plain white studio background and soft floor contact shadow.`, negative);
+        const masterImage = findImage(characterImageFiles, `${slug(character.name)}-正面全身`) || findImage(characterImageFiles, `${slug(character.name)}-sheet`) || findImage(imageFiles, `${slug(character.name)}-sheet`);
+        const master = makeImageNode({
             title: `角色锚点 · ${character.name} · 正面全身`,
-            position: { x: characterStartX, y: index * 580 },
+            x: blockX,
+            y: blockY + 320,
             width: 360,
             height: 540,
-            metadata: {
-                content: "",
-                prompt: withNegative(`${core} Front-facing full-length body, neutral standing pose, both shoulders and both feet fully visible, straight-on orthographic camera, plain white studio background and soft floor contact shadow.`, negative),
-                status: "idle",
-                generationMode: "image",
-                count: 1,
-                size: "2:3",
-            },
+            prompt: masterPrompt,
+            size: "2:3",
+            imageFile: masterImage,
         });
+        if (sheetImage) {
+            const characterSheet = makeImageNode({
+                title: `角色设定图 · ${character.name}`,
+                x: blockX,
+                y: blockY,
+                width: 480,
+                height: 270,
+                prompt: character.image?.sheet || character.image?.prompt || "",
+                size: "16:9",
+                imageFile: sheetImage,
+            });
+            addConnection(characterSheet.id, master.id);
+        }
         const reference = { masterId: master.id, viewNodeIds: new Map() };
-        characterReference.set(character.id, reference);
+        if (characterId) characterReference.set(characterId, reference);
         if (!includeCharacterViews) continue;
         const creature = isCreature(character);
         for (const [viewIndex, view] of (creature ? creatureViews() : humanViews()).entries()) {
-            const viewNode = addNode({
-                type: "image",
+            const viewImage = findImage(characterImageFiles, `${slug(character.name)}-${slug(view.title)}`);
+            const viewNode = makeImageNode({
                 title: `角色视图 · ${character.name} · ${view.title}`,
-                position: { x: characterStartX + 420 + (viewIndex % 4) * 400, y: index * 580 + Math.floor(viewIndex / 4) * 300 },
+                x: blockX + 420 + (viewIndex % 4) * 400,
+                y: blockY + 320 + Math.floor(viewIndex / 4) * 300,
                 width: 360,
                 height: 260,
-                metadata: {
-                    content: "",
-                    prompt: withNegative(`Use the attached ${character.name} master reference image to preserve exactly the same identity, facial features, proportions, hairstyle, costume and identifying visual anchors. ${core} ${view.direction}`, negative),
-                    status: "idle",
-                    generationMode: "image",
-                    count: 1,
-                    size: view.size,
-                },
+                prompt: withNegative(`Use the attached ${character.name} master reference image to preserve exactly the same identity, facial features, proportions, hairstyle, costume and identifying visual anchors. ${core} ${view.direction}`, negative),
+                size: view.size,
+                imageFile: viewImage,
             });
             addConnection(master.id, viewNode.id);
             reference.viewNodeIds.set(view.title, viewNode.id);
         }
     }
 
-    const narrativeStartY = Math.max(1200, Math.ceil(assetIndex / 6) * 300 + 200);
+    const characterRows = Math.ceil(cast.characters.length / characterColumns);
+    const narrativeStartY = characterStartY + characterRows * characterBlockHeight + 500;
+    addNode({ type: "text", title: "分镜生产区", position: { x: -420, y: narrativeStartY - 140 }, width: 600, height: 60, metadata: { content: "分镜生产区", status: "success", fontSize: 20 } });
     let segmentIndex = 0;
     let keyframes = 0;
     let narrativeY = narrativeStartY;
@@ -204,7 +257,8 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
         const scriptEpisode = scriptByEpisode.get(episode.ep);
         if (!scriptEpisode) fail(`分镜第 ${episode.ep} 集在剧本中不存在。`);
         for (const segment of episode.segments || []) {
-            if (!segment.id || !Array.isArray(segment.cuts) || !segment.h3Prompt) fail(`${segment.id || "未命名分段"} 缺少 cuts 或 h3Prompt。`);
+            if (!segment.id || !Array.isArray(segment.cuts) || !segment.cuts.length || !segment.h3Prompt) fail(`${segment.id || "未命名分段"} 缺少 cuts 或 h3Prompt。`);
+            if (!Number.isInteger(segment.sceneIndex) || segment.sceneIndex < 1) fail(`${segment.id} 的 sceneIndex 必须是从 1 开始的整数。`);
             const scriptScene = scriptEpisode.scenes?.[segment.sceneIndex - 1];
             if (!scriptScene) fail(`${segment.id} 的 sceneIndex 无法映射到剧本场次。`);
             const y = narrativeY;
@@ -231,19 +285,20 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
                     position: { x: 400 + cutIndex * 840, y },
                     width: 340,
                     height: 280,
-                    metadata: { composerContent: "", status: "idle", generationMode: "image", count: 1, size: "16:9" },
+                    metadata: { composerContent: "", status: "idle", generationMode: "image", count: 1, size: aspect },
                 });
                 keyframes += 1;
                 const referenceIds = new Set();
                 const sceneAsset = sceneReference.get(scriptScene.sceneId);
-                const sceneNodeId = sceneAsset?.lightingNodes.get(scriptScene.lighting) || sceneAsset?.sheetId;
+                const sceneLighting = sceneAsset?.lightingNodes.get(scriptScene.lighting);
+                const sceneNodeId = sceneLighting?.hasImage ? sceneLighting.id : sceneAsset?.sheetId;
                 if (sceneNodeId) referenceIds.add(sceneNodeId);
                 if (paletteNodeId) referenceIds.add(paletteNodeId);
                 const characterIds = new Set(Array.isArray(cut.characters) ? cut.characters : (scriptScene.characters || []));
                 for (const characterId of characterIds) {
                     if (characterId === "VO") continue;
                     const reference = characterReference.get(characterId);
-                    if (!reference) continue;
+                    if (!reference) fail(`${segment.id}-f${cutIndex + 1} 的角色 ${characterId} 没有匹配角色卡；无编号角色卡请提供 --outline，不能按数组顺序猜测。`);
                     referenceIds.add(reference.masterId);
                     for (const viewNodeId of selectCharacterViewIds(reference, cut)) referenceIds.add(viewNodeId);
                 }
@@ -257,10 +312,10 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
             addNode({ type: "text", title: `${segment.id} · 关键帧操作说明`, position: { x: 400, y: y + 320 }, width: 740, height: 220, metadata: { content: keyframeInstructions(segment), status: "success", fontSize: 14 } });
             const seconds = String(Math.max(1, Math.round(segment.cuts.reduce((total, cut) => total + Number(cut.seconds || 0), 0))));
             const videoX = 400 + segment.cuts.length * 840 + 20;
-            addNode({ type: "config", title: `${segment.id} · H3 视频`, position: { x: videoX, y }, width: 340, height: 280, metadata: { composerContent: segment.h3Prompt, generationMode: "video", seconds, size: "16:9", videoMode: "reference" } });
+            addNode({ type: "config", title: `${segment.id} · H3 视频`, position: { x: videoX, y }, width: 340, height: 280, metadata: { composerContent: segment.h3Prompt, generationMode: "video", seconds, size: aspect, videoMode: "reference" } });
             const seedance = seedancePrompt(segment, scriptScene, constraints, handoff);
             const seedanceText = addNode({ type: "text", title: `${segment.id} · 豆包 Seedance 提示词`, position: { x: videoX + 940, y }, width: 340, height: 240, metadata: { content: seedance, status: "success", fontSize: 14 } });
-            addNode({ type: "config", title: `${segment.id} · 豆包 Seedance 视频`, position: { x: videoX + 1320, y }, width: 340, height: 280, metadata: { composerContent: seedance, generationMode: "video", seconds, size: "16:9", videoMode: "reference" } });
+            addNode({ type: "config", title: `${segment.id} · 豆包 Seedance 视频`, position: { x: videoX + 1320, y }, width: 340, height: 280, metadata: { composerContent: seedance, generationMode: "video", seconds, size: aspect, videoMode: "reference" } });
             addNode({ type: "text", title: `${segment.id} · 视频操作说明`, position: { x: videoX, y: y + 320 }, width: 900, height: 220, metadata: { content: videoInstructions(segment), status: "success", fontSize: 14 } });
             void h3Text;
             void seedanceText;
@@ -287,7 +342,8 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
         { name: `source/${basename(sourcePaths.script)}`, data: Buffer.from(JSON.stringify(script, null, 2), "utf8") },
         { name: `source/${basename(sourcePaths.art)}`, data: Buffer.from(JSON.stringify(art, null, 2), "utf8") },
         { name: `source/${basename(sourcePaths.cast)}`, data: Buffer.from(JSON.stringify(cast, null, 2), "utf8") },
-        { name: "source/canvas-input.json", data: Buffer.from(JSON.stringify({ version: 3, storyboard: `source/${basename(sourcePaths.storyboard)}`, previz: [...previz.keys()], script: `source/${basename(sourcePaths.script)}`, constraints }), "utf8") },
+        ...(outline ? [{ name: `source/${basename(sourcePaths.outline)}`, data: Buffer.from(JSON.stringify(outline, null, 2), "utf8") }] : []),
+        { name: "source/canvas-input.json", data: Buffer.from(JSON.stringify({ version: 4, storyboard: `source/${basename(sourcePaths.storyboard)}`, previz: [...previz.keys()], script: `source/${basename(sourcePaths.script)}`, constraints }), "utf8") },
         ...[...previz].flatMap(([sid, handoff]) => [
             { name: `source/previz/${sid}/grid-input.json`, data: Buffer.from(JSON.stringify(handoff.data, null, 2), "utf8") },
             { name: `source/previz/${sid}/grid-prompt.txt`, data: Buffer.from(handoff.prompt, "utf8") },
@@ -295,7 +351,20 @@ function buildCanvas({ storyboard, script, art, cast, sourcePaths, imageDir, tit
         ]),
         ...embeddedFiles.map((file) => ({ name: file.path, data: file.data })),
     ];
-    return { entries, summary: { segments: segmentIndex, keyframes, embeddedImages: embeddedFiles.length } };
+    const storedImages = nodes.filter((node) => node.type === "image" && node.metadata?.storageKey);
+    const countStored = (predicate) => storedImages.filter(predicate).length;
+    return {
+        entries,
+        summary: {
+            segments: segmentIndex,
+            keyframes,
+            embeddedImages: embeddedFiles.length,
+            characterImages: countStored((node) => node.title.startsWith("角色设定图 ·") || node.title.startsWith("角色锚点 ·") || node.title.startsWith("角色视图 ·")),
+            sceneLightingImages: countStored((node) => node.title.startsWith("场景 ·") && !node.title.endsWith("多视角设定图")),
+            sheetImages: countStored((node) => (node.title.startsWith("场景 ·") || node.title.startsWith("道具 ·")) && node.title.endsWith("多视角设定图")),
+            previzImages: countStored((node) => node.title.endsWith("预演参考图")),
+        },
+    };
 }
 
 function keyframeComposer(prompt, references) {
@@ -323,7 +392,7 @@ function videoInstructions(segment) {
     ].join("\n");
 }
 
-function seedancePrompt(segment, scriptScene, constraints, handoff) {
+function seedancePrompt(segment, scriptScene, constraints, handoff, version = 4) {
     const lines = segment.cuts.map((_, index) => `@[图片${index + 1}] = 分镜图 #${index + 1}`);
     if (lines.length) lines.push("");
     const opening = handoff?.data.planning?.opening || segment.blocking;
@@ -340,10 +409,10 @@ function seedancePrompt(segment, scriptScene, constraints, handoff) {
         push("焦距", cut.lens);
         push("机位", cut.cameraPosition);
         push("构图", cut.composition);
-        push("运镜", CAMERA[cut.camera] || cut.camera);
-        push("景别", SHOT_SIZES[cut.size] || cut.size);
+        push("运镜", (version >= 4 ? CURRENT_CAMERA.get(cut.camera) : CAMERA[cut.camera]) || cut.camera);
+        push("景别", (version >= 4 ? CURRENT_SIZES.get(cut.size) : SHOT_SIZES[cut.size]) || cut.size);
         push("画面", `${spatial.action}（构图参考 @图片${index + 1}）`);
-        push("动作承接", spatial.continuity);
+        if (version < 4) push("动作承接", spatial.continuity);
         push("光影", cut.lighting);
         const [from, to] = cut.beats || [];
         const spoken = Number.isInteger(from) && Number.isInteger(to) ? beats.slice(from - 1, to).filter((beat) => beat.kind === "line") : [];
@@ -406,7 +475,7 @@ function selectCharacterViewIds(reference, cut) {
                         /背影|背面|后背|背部|从背后|背向|背对/.test(text) ? "背面全身" :
                             /45\s*度|斜侧|三分之二|侧前/.test(text) ? "45 度头像" :
                                 /侧脸|侧面|侧身|侧拍|侧后|90\s*度/.test(text) ? "侧面 90 度" :
-                                    /特写|大特写|面部|脸部|眼睛|眼神/.test(text) || ["close", "extreme_close"].includes(cut.size) ? "正面头像" :
+                                    /特写|大特写|面部|脸部|眼睛|眼神/.test(text) || ["close", "extreme-close", "extreme_close"].includes(cut.size) ? "正面头像" :
                                         null;
     const viewNodeId = viewTitle ? reference.viewNodeIds.get(viewTitle) : null;
     return viewNodeId ? [viewNodeId] : [];
@@ -423,18 +492,33 @@ function isCreature(character) {
 
 function collectImageFiles(directory) {
     if (!statSync(directory).isDirectory()) fail(`图片目录不存在：${directory}`);
-    return readdirSync(directory, { withFileTypes: true })
-        .filter((entry) => entry.isFile() && IMAGE_EXTENSIONS.has(extname(entry.name).toLowerCase()))
-        .map((entry) => {
+    const files = [];
+    const walk = (current) => {
+        for (const entry of readdirSync(current, { withFileTypes: true })) {
+            const path = resolve(current, entry.name);
+            if (entry.isDirectory()) {
+                walk(path);
+                continue;
+            }
+            if (!entry.isFile()) continue;
             const ext = extname(entry.name).toLowerCase();
-            return { path: resolve(directory, entry.name), stem: basename(entry.name, ext).toLowerCase(), ext, mimeType: mimeType(ext) };
-        });
+            if (!IMAGE_EXTENSIONS.has(ext)) continue;
+            files.push({ path, stem: basename(entry.name, ext).toLowerCase(), ext, mimeType: mimeType(ext) });
+        }
+    };
+    walk(directory);
+    return files.sort((left, right) => left.path.localeCompare(right.path));
 }
 
-function findImage(files, stem) {
-    const expected = stem.toLowerCase();
-    const compact = expected.replace(/-/g, "");
-    return files.find((file) => file.stem === expected || slug(file.stem).toLowerCase().replace(/-/g, "") === compact) || null;
+function findImage(files, ...stems) {
+    for (const stem of stems) {
+        if (!stem) continue;
+        const expected = String(stem).toLowerCase();
+        const compact = expected.replace(/-/g, "");
+        const found = files.find((file) => file.stem === expected || slug(file.stem).toLowerCase().replace(/-/g, "") === compact);
+        if (found) return found;
+    }
+    return null;
 }
 
 function imageDimensions(bytes, extension) {
@@ -469,10 +553,10 @@ function validateCanvas(args) {
     if (missing.length) fail(`ZIP 缺少 ${missing.length} 个嵌入图片。`);
     const input = entries.has("source/canvas-input.json") ? JSON.parse(entries.get("source/canvas-input.json").toString("utf8")) : null;
     if (input) {
-        if (![1, 2, 3].includes(input.version) || !entries.has(input.storyboard) || !Array.isArray(input.previz)) fail("ZIP 的源数据索引无效。");
-        if (input.version === 3 && (!entries.has(input.script) || !Array.isArray(input.constraints) || input.constraints.some((line) => typeof line !== "string"))) fail("ZIP 的剧本或视频约束索引无效。");
+        if (![1, 2, 3, 4].includes(input.version) || !entries.has(input.storyboard) || !Array.isArray(input.previz)) fail("ZIP 的源数据索引无效。");
+        if (input.version >= 3 && (!entries.has(input.script) || !Array.isArray(input.constraints) || input.constraints.some((line) => typeof line !== "string"))) fail("ZIP 的剧本或视频约束索引无效。");
         const storyboard = args.storyboard ? readJson(requiredPath(args, "storyboard")) : JSON.parse(entries.get(input.storyboard).toString("utf8"));
-        const script = input.version === 3 ? JSON.parse(entries.get(input.script).toString("utf8")) : null;
+        const script = input.version >= 3 ? JSON.parse(entries.get(input.script).toString("utf8")) : null;
         validateSpatialImport(project, entries, storyboard, input.previz, files, input.version, script, input.constraints);
     } else if (args.storyboard) {
         // 旧导出包没有空间交接索引，继续按原来的 cut.frame 规则验证。
@@ -505,15 +589,16 @@ function validateSpatialImport(project, entries, storyboard, previzIds, files, v
     }));
     for (const [sid, segment] of segments) {
         const handoff = handoffs.get(sid);
-        if (unique(`${sid} · 站位与拍摄说明`, "text").metadata?.content !== spatialSummary(segment, handoff)) fail(`${sid} 的站位与拍摄说明丢失或与源数据不一致。`);
+        const aspect = version >= 4 ? boardAspect(storyboard) : "16:9";
+        if (unique(`${sid} · 站位与拍摄说明`, "text").metadata?.content !== spatialSummary(segment, handoff, version)) fail(`${sid} 的站位与拍摄说明丢失或与源数据不一致。`);
         const frames = segment.cuts.map((cut, index) => {
             const node = unique(`${sid} · 关键帧 ${index + 1}`, version >= 2 ? "config" : "image");
-            let prompt = keyframePrompt(segment, cut, index, handoff);
+            let prompt = keyframePrompt(segment, cut, index, handoff, version);
             if (version >= 2) {
                 const incoming = connections.filter((edge) => edge.toNodeId === node.id).map((edge) => edge.fromNodeId);
                 const references = nodes.filter((item) => incoming.includes(item.id));
                 if (new Set(incoming).size !== incoming.length || references.length !== incoming.length || references.some((item) => item.type !== "image")) fail(`${node.title} 的参考图连线无效。`);
-                if (node.metadata?.generationMode !== "image" || node.metadata?.count !== 1 || node.metadata?.size !== "16:9") fail(`${node.title} 的生图配置不正确。`);
+                if (node.metadata?.generationMode !== "image" || node.metadata?.count !== 1 || node.metadata?.size !== aspect) fail(`${node.title} 的生图配置不正确。`);
                 if (connections.some((edge) => edge.fromNodeId === node.id)) fail(`${node.title} 是生成配置，不能直接作为图片结果连接。`);
                 prompt = keyframeComposer(prompt, references);
             }
@@ -521,19 +606,19 @@ function validateSpatialImport(project, entries, storyboard, previzIds, files, v
             return node.id;
         });
         if (version >= 2 && unique(`${sid} · 关键帧操作说明`, "text").metadata?.content !== keyframeInstructions(segment)) fail(`${sid} 的关键帧操作说明或图片顺序不正确。`);
-        if (version === 3 && unique(`${sid} · 视频操作说明`, "text").metadata?.content !== videoInstructions(segment)) fail(`${sid} 的视频操作说明或参考图编号不正确。`);
+        if (version >= 3 && unique(`${sid} · 视频操作说明`, "text").metadata?.content !== videoInstructions(segment)) fail(`${sid} 的视频操作说明或参考图编号不正确。`);
         for (const label of ["H3", "豆包 Seedance"]) {
-            const video = unique(`${sid} · ${label} 视频`, version === 3 ? "config" : "video");
+            const video = unique(`${sid} · ${label} 视频`, version >= 3 ? "config" : "video");
             const incoming = connections.filter((edge) => edge.toNodeId === video.id).map((edge) => edge.fromNodeId);
             const invalid = version >= 2 ? incoming.length !== 0 : incoming.length !== frames.length || incoming.some((id, index) => id !== frames[index]);
             if (invalid) fail(`${video.title} 的关键帧引用不正确；组合节点需要先生成图片，再连接选定结果。`);
-            if (version === 3) {
+            if (version >= 3) {
                 const seconds = String(Math.max(1, Math.round(segment.cuts.reduce((total, cut) => total + Number(cut.seconds || 0), 0))));
-                if (video.metadata?.generationMode !== "video" || video.metadata?.seconds !== seconds || video.metadata?.size !== "16:9" || video.metadata?.videoMode !== "reference") fail(`${video.title} 的视频模式、时长或画幅不正确。`);
+                if (video.metadata?.generationMode !== "video" || video.metadata?.seconds !== seconds || video.metadata?.size !== aspect || video.metadata?.videoMode !== "reference") fail(`${video.title} 的视频模式、时长或画幅不正确。`);
                 const episode = storyboard.episodes.find((episode) => episode.segments?.some((item) => item.id === sid));
                 const scene = script.episodes?.find((item) => item.ep === episode.ep)?.scenes?.[segment.sceneIndex - 1];
                 if (!scene) fail(`${sid} 的视频提示词无法映射到归档剧本场次。`);
-                const prompt = label === "H3" ? segment.h3Prompt : seedancePrompt(segment, scene, constraints, handoff);
+                const prompt = label === "H3" ? segment.h3Prompt : seedancePrompt(segment, scene, constraints, handoff, version);
                 if (video.metadata?.composerContent !== prompt || unique(`${sid} · ${label} 提示词`, "text").metadata?.content !== prompt) fail(`${video.title} 的组合提示词或原文与源数据不一致。`);
                 if (connections.some((edge) => edge.fromNodeId === video.id)) fail(`${video.title} 尚未生成结果，不应存在输出连线。`);
             }
@@ -700,5 +785,5 @@ function fail(message) {
 }
 
 function printHelp() {
-    console.log(`用法：\n  node export-infinite-canvas.mjs export --storyboard <storyboard.json> --script <script.json> --art <art.json> --cast <cast.json> --out <canvas.zip> [--previz <预演交付目录>] [--images <目录>] [--title <画布标题>] [--project-id <项目标识>] [--constraints <文本文件>] [--no-character-views]\n  node export-infinite-canvas.mjs validate --zip <canvas.zip> [--storyboard <storyboard.json>]`);
+    console.log(`用法：\n  node export-infinite-canvas.mjs export --storyboard <storyboard.json> --script <script.json> --art <art.json> --cast <cast.json> --out <canvas.zip> [--outline <outline.json>] [--previz <预演交付目录>] [--images <目录>] [--character-images <角色图片目录>] [--character-sheets-only] [--title <画布标题>] [--project-id <项目标识>] [--constraints <文本文件>] [--no-character-views]\n  node export-infinite-canvas.mjs validate --zip <canvas.zip> [--storyboard <storyboard.json>]`);
 }

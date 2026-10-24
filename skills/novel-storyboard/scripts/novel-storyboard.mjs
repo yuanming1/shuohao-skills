@@ -1351,7 +1351,7 @@ export function renderHtml(board, ctx = {}) {
         .map((seg) => {
           const segs = seg.cuts
             .map((cut, ci) => {
-              const w = st.totalSeconds ? (cut.seconds / st.totalSeconds) * 100 : 0;
+              const w = segSeconds(seg) ? (cut.seconds / segSeconds(seg)) * 100 : 0;
               const alpha = SIZE_ALPHA[cut.size] ?? 0.5;
               return `<a class="seg" href="#seg-${esc(seg.id)}" style="width:${r1(w)}%;background:rgba(138,51,36,${alpha})" title="${esc(`${seg.id}#${ci + 1} · ${cut.seconds}s · ${t.sizeName(cut.size)} · ${cut.camera}`)}"></a>`;
             })

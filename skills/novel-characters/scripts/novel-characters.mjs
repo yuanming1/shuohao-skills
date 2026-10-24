@@ -1105,10 +1105,10 @@ button{font-family:inherit}
 /* ---------- 顶栏 ---------- */
 .top{position:sticky;top:0;z-index:20;height:var(--top);display:flex;align-items:center;gap:24px;
   padding:0 20px;background:var(--panel);border-bottom:1px solid var(--rule-2)}
-.brand{display:flex;align-items:baseline;gap:10px;flex:none}
-.brand h1{font:400 22px/1 var(--serif);letter-spacing:.04em}
+.brand{display:flex;align-items:baseline;gap:10px;flex:0 1 auto;min-width:0;max-width:50%}
+.brand h1{font:400 22px/1 var(--serif);letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .brand em{font:italic 12px/1 var(--serif);color:var(--ink-3)}
-.search{flex:1;max-width:720px;position:relative}
+.search{flex:1;min-width:0;max-width:720px;position:relative}
 .search input{width:100%;height:34px;padding:0 12px 0 32px;border:1px solid var(--rule-2);
   border-radius:3px;background:var(--paper);color:var(--ink);font:14px/1 var(--sans);outline:none}
 .search input:focus{border-color:var(--seal)}
@@ -1121,6 +1121,14 @@ button{font-family:inherit}
   border:1px solid var(--rule-2);border-radius:2px;padding:6px 10px;cursor:pointer;transition:.15s}
 .expo:hover{border-color:var(--seal);color:var(--seal)}
 .expo:focus-visible{outline:2px solid var(--seal);outline-offset:2px}
+@media(max-width:900px){
+  :root{--top:124px}
+  .top{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:28px 34px 26px;
+    gap:8px;padding:10px 16px}
+  .brand{max-width:100%}
+  .search{max-width:none}
+  .topmeta{margin-left:0;justify-content:space-between;gap:6px;min-width:0}
+}
 
 /* ---------- 骨架 ---------- */
 .shell{display:grid;grid-template-columns:var(--side-w) minmax(0,1fr);align-items:start}
