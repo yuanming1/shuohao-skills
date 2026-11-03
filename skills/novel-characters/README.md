@@ -10,7 +10,7 @@
 - **人物画像** — 性别、年龄、身份、外貌、性情、动机、人物弧光、关系网，每条附**原文逐字引文**
 - **形象提示词** — 双语出图 prompt + negative prompt + 标签，直接喂 Midjourney / SD / GPT-Image。画风不写进提示词，由调用方在出图时整批附加
 - **音色提示词** — 音色、音高、语速、口音、情绪，双语 voice-design prompt，直接喂 Qwen3-TTS / ElevenLabs Voice Design
-- **角色设定图的版面指令** — **每个角色一条**：16:9 分三区，左侧约 34% 证件照式半身像（面部基准）、右上全身三视图、右下关键细节特写条，白底方便抠图。**本 skill 不出图**，交付的是这段指令
+- **角色设定图的版面指令** — **每个角色一条**：16:9 纯白画布，上部 1/3 为正面、左侧 90° 面部特写；下部 2/3 为正面无头部、左侧 90° 无头部、背面有头部的身体三视图。脚底线、髋线、肩线、颈部切断面对齐下巴底、身高比例是五条绝对基准；画面没有分割线或任何文字标注。**本 skill 不出图**，交付的是这段指令
 - **关系图谱** — 报告里的一个全景视图：谁跟谁有关系、是什么关系，一眼看完。悬停一个人亮出他的全部关系，点一下跳到那个人的详情
 
 产出 `cast.json` + Markdown + 一个双击就能开的 `report.html`。
@@ -32,7 +32,7 @@ node scripts/novel-characters.mjs ui-template fr   # 打印待翻译的骨架
 
 ![report.html](assets/report.webp)
 
-角色设定图（自带样例《渡口》的沈知微）：
+旧版角色设定图预览（自带样例《渡口》的沈知微；当前上下布局及英文提示词骨架见 [sheet.md](references/sheet.md)）：
 
 ![角色设定图](assets/sheet.jpg)
 
@@ -159,7 +159,7 @@ node scripts/novel-characters.mjs slug "胡二爷"                  # 安全文�
 SKILL.md                 给 agent 读的工作流
 scripts/
   novel-characters.mjs   chunk / merge / assemble / validate / render / slug
-  selftest.mjs           329 项断言，不调模型
+  selftest.mjs           337 项断言，不调模型
 references/
   roster-pass.md         第一趟：扫描角色
   profile-pass.md        第二趟：生成角色卡（8 条硬规则）
@@ -180,6 +180,6 @@ examples/
 node scripts/selftest.mjs
 ```
 
-329 项断言，覆盖分块 / 别名归并 / 合成 / 多语言 / 校验 / 渲染。不调模型、不花额度、1 秒跑完。改完脚本先跑这个。
+337 项断言，覆盖分块 / 别名归并 / 合成 / 多语言 / 校验 / 渲染。不调模型、不花额度、1 秒跑完。改完脚本先跑这个。
 
 **只在 macOS + Node 24 上实测过。** 代码没有平台相关调用，Linux 和更低版本 Node 理论上没问题，但**没验过**。

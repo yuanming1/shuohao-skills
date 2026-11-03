@@ -48,7 +48,7 @@
     "promptLocal": "角色设定图：约七十岁的中国老船夫……",
     "negativePrompt": "young face, smooth poreless skin, perfectly symmetrical face, dead eyes without catchlights, helmet hair, extra fingers, ...",
     "tags": ["character sheet", "three-quarter view", "neutral background"],
-    "sheet": "Single character model sheet on ONE 16:9 landscape canvas ... LEFT ZONE ... about 34% ... one bust portrait ... RIGHT-TOP ZONE ... three FULL-BODY views ... PROPORTIONS ARE CRITICAL ... RIGHT-BOTTOM ZONE ... four to five small isolated close-up studies ..."
+    "sheet": "Single character model sheet on ONE 16:9 landscape canvas ... Plain pure white background ... NO dividing lines, panel borders, visible guide lines, letters, numbers, labels, captions or any other text ... UPPER ONE-THIRD ... front facial close-up, LEFT 90-degree profile ... LOWER TWO-THIRDS ... FRONT VIEW WITHOUT THE HEAD; LEFT 90-DEGREE VIEW WITHOUT THE HEAD; BACK VIEW WITH THE COMPLETE HEAD ... FOOT-SOLE LINE ... HIP LINE ... SHOULDER LINE ... NECK CUT PLANE AT CHIN-BASE HEIGHT ... HEIGHT PROPORTIONS ..."
   },
 
   "voice": {
@@ -79,21 +79,20 @@
 | `image.promptLocal` | string | 本地语言 | 上面那条的译文；`lang=en` 时省略；**同样禁止人名** |
 | `image.negativePrompt` | string | **英文** | 逗号分隔 |
 | `image.tags` | string[] | **英文** | 4–8 个检索标签：题材、年代、色板、材质、光照。**不打画风标**（`semi-realistic`、`painterly` 这类），画风出图时才定 |
-| `image.sheet` | string | **英文** | **角色设定图**，16:9 三区版面：左约 34% 半身像（面部基准）／右上全身三视图／右下细节条，细线分隔；**禁止出现人名**；**必须写明族裔／年代／地域** |
+| `image.sheet` | string | **英文** | **角色设定图**，16:9 上下布局：上部 1/3 为正面与左侧 90° 面部特写，下部 2/3 为正面无头部、左侧 90° 无头部、背面有头部的身体三视图；纯白背景，无分割线或文字；五条绝对基准见 `sheet.md`；**禁止出现人名**；**必须写明族裔／年代／地域** |
 | `voice.timbre/pitch/pace/accent/emotion/referenceHint` | string | **本地语言** | 最容易写漂的地方，注意 |
 | `voice.prompt` | string | **英文** | 给 TTS 音色设计引擎。**没有 `promptLocal` 对照版，这是有意的**——上面六项已经是本地语言，再给一段中文散文只会让人复制错，把它喂进 TTS（生产里踩过） |
 
 **英文字段不跟随 `lang`。** 图像模型和 TTS 引擎吃英文最稳，跟报告用什么语言无关。
 
-## 设定图的三区版面
+## 设定图的上下布局
 
-16:9 横构图，细线分成三块：
+16:9 横构图，纯白背景，以留白组织上下两个区域，不绘制分割线、字母、编号或任何文字标注。
 
-- **左（约 34%）** 半身像当**面部设计基准**，尺寸大、五官画得细，可以直接拿去做表情设计
-- **右上** 三视图管剪影、比例、服装，脸照左栏画
-- **右下** 细节条，4–5 个关键细节的小特写（配饰、道具、疤痕、鞋履……）
+- **上部 1/3**：正面、左侧严格 90° 的面部特写，两张等比例。
+- **下部 2/3**：正面无头部、左侧严格 90° 无头部、背面有完整头部的身体三视图。
 
-两个最容易崩的点：**一张图里出现两个长相**，以及**为了塞下细节把人物压扁**。提示词里都要写死——细节放不下就往右缘延伸，**永远是细节让位，不是人物让位**。
+用**脚底线、髋线、肩线、颈部切断面对齐下巴底、身高比例**五条绝对基准约束下部三个身体。基准不可见；前两个身体只省略头部，不能单独放大来追平背面头顶。完整英文骨架与对齐定义见 `sheet.md`。
 
 ## 校验
 

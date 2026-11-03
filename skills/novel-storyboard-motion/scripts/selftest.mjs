@@ -245,6 +245,81 @@ try {
     const moved = path.join(other, 'after.json'); fs.writeFileSync(moved, originalBytes);
     assert.equal(run('review', '--before', before, '--after', moved).status, 1);
   });
+  const applyDir = path.join(temp, 'in-place'); fs.mkdirSync(applyDir);
+  const target = path.join(applyDir, 'storyboard.json');
+  const applyReport = path.join(applyDir, 'motion-review.md');
+  const reset = () => fs.writeFileSync(target, originalBytes);
+  const revised = () => mutate((value) => {
+    first(value).shot = '修理师继续托住收音机，司机接住重量后才松手。';
+    segment(value).h3Prompt = prompt('A supports the radio until B takes its weight, then releases it.');
+  });
+  const apply = (before, after, ...extra) => spawnSync(process.execPath,
+    [cli, 'apply', '--file', target, ...extra],
+    { input: JSON.stringify({ before, after }), encoding: 'utf8' });
+  test('apply 原位更新同一文件，不产生阶段 JSON', () => {
+    reset(); const result = apply(board(), revised());
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(fs.readFileSync(target, 'utf8')), revised());
+    assert.deepEqual(fs.readdirSync(applyDir), ['storyboard.json']);
+    assert.match(result.stdout, /G06/);
+  });
+  test('apply 继承已更新内容，并覆盖指定的既有报告', () => {
+    const current = JSON.parse(fs.readFileSync(target, 'utf8'));
+    const next = structuredClone(current); first(next).note += '下一镜继续保持新持有关系。';
+    fs.writeFileSync(applyReport, 'old report');
+    assert.equal(apply(current, next, '--out', applyReport).status, 0);
+    assert.deepEqual(JSON.parse(fs.readFileSync(target, 'utf8')), next);
+    assert.match(fs.readFileSync(applyReport, 'utf8'), /新持有关系/);
+    assert.deepEqual(fs.readdirSync(applyDir).sort(), ['motion-review.md', 'storyboard.json']);
+  });
+  test('apply 过期输入不能覆盖新的内容', () => {
+    const saved = fs.readFileSync(target, 'utf8');
+    const result = apply(board(), revised());
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /已变化/);
+    assert.equal(fs.readFileSync(target, 'utf8'), saved);
+  });
+  for (const [label, candidate] of [
+    ['时长被改', mutate((value) => { first(value).seconds += 1; })],
+    ['H3 未同步', mutate((value) => { first(value).shot = '接住重量后松手。'; })],
+    ['台词被改', mutate((value) => { segment(value).h3Prompt = prompt().replace('谢谢。', '多谢。'); })],
+  ]) {
+    test(`apply 检查失败保留原文件：${label}`, () => {
+      reset(); assert.equal(apply(board(), candidate).status, 2);
+      assert.equal(fs.readFileSync(target, 'utf8'), originalBytes);
+    });
+  }
+  test('apply 无变化时保留原格式和 BOM', () => {
+    const bytes = '\uFEFF'+JSON.stringify(board(), null, 4);
+    fs.writeFileSync(target, bytes);
+    assert.equal(apply(board(), board()).status, 0);
+    assert.equal(fs.readFileSync(target, 'utf8'), bytes);
+  });
+  test('apply 禁止报告写到 storyboard 路径', () => {
+    reset(); assert.equal(apply(board(), revised(), '--out', target).status, 1);
+    assert.equal(fs.readFileSync(target, 'utf8'), originalBytes);
+  });
+  test('apply 报告写入失败不修改 storyboard', () => {
+    reset(); assert.equal(apply(board(), revised(), '--out', path.join(applyDir, 'missing', 'report.md')).status, 1);
+    assert.equal(fs.readFileSync(target, 'utf8'), originalBytes);
+  });
+  test('apply 报告硬链接不能覆盖 storyboard', () => {
+    reset(); const alias = path.join(applyDir, 'alias.md'); fs.linkSync(target, alias);
+    assert.equal(apply(board(), revised(), '--out', alias).status, 1);
+    assert.equal(fs.readFileSync(target, 'utf8'), originalBytes);
+  });
+  for (const input of ['', '{bad', '{}', JSON.stringify({ before: board() })]) {
+    test(`apply 拒绝无效标准输入 ${input.length}`, () => {
+      reset();
+      const result = spawnSync(process.execPath, [cli, 'apply', '--file', target], { input, encoding: 'utf8' });
+      assert.equal(result.status, 1);
+      assert.equal(fs.readFileSync(target, 'utf8'), originalBytes);
+    });
+  }
+  test('apply 拒绝旧参数或缺少目标路径', () => {
+    assert.equal(run('apply', '--before', before, '--after', after).status, 1);
+    assert.equal(run('apply').status, 1);
+  });
 } finally {
   const resolved = fs.realpathSync(temp);
   assert.equal(path.dirname(resolved), fs.realpathSync(os.tmpdir()));

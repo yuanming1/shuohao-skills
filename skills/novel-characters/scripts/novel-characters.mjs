@@ -233,7 +233,7 @@ const STRINGS = {
     graphDangling: (n) => `另有 ${n} 条关系指向没做画像的角色，图里不画`,
     relationsAll: '全部关系',
     copy: '复制', copied: '已复制', copyFailed: '复制失败', copyJson: '复制整份角色 JSON',
-    sheetCaption: '左：半身像　右：全身三视图',
+    sheetCaption: '上部：正面、左侧90°面部特写　下部：正面、左侧90°无头部，背面有头部',
     noImage: '尚未出图',
     noImageHint: '用下方提示词生成',
     colophonA: '画像与提示词由模型依据原文生成，',
@@ -285,7 +285,7 @@ const STRINGS = {
     graphDangling: (n) => `${n} more link${n === 1 ? '' : 's'} point to characters without a profile and are not drawn`,
     relationsAll: 'All links',
     copy: 'Copy', copied: 'Copied', copyFailed: 'Failed', copyJson: 'Copy full JSON',
-    sheetCaption: 'Left: bust　Right: full-body turnaround',
+    sheetCaption: 'Top: front / left 90-degree face　Bottom: headless front / left 90-degree body, complete back',
     noImage: 'Not generated yet',
     noImageHint: 'use the prompts below',
     colophonA: 'Profiles and prompts are model-generated from the source text; ',
@@ -336,7 +336,7 @@ const STRINGS = {
     graphDangling: (n) => `他に${n}件、設定を作っていない人物への関係があります（図には出ません）`,
     relationsAll: '関係一覧',
     copy: 'コピー', copied: 'コピー済み', copyFailed: '失敗', copyJson: 'JSON をコピー',
-    sheetCaption: '左：バストアップ　右：三面図',
+    sheetCaption: '上段：顔の正面・左90度　下段：正面・左90度は頭部なし、背面は頭部あり',
     noImage: '未生成',
     noImageHint: '下のプロンプトで生成',
     colophonA: '人物像とプロンプトは原文をもとにモデルが生成したものです。',
@@ -502,8 +502,8 @@ export function validateCast(characters, sourceText, lang = DEFAULT_LANG) {
    * 阈值取 0.75，是量出来的不是拍的——自带样例四个角色两两最高 39%，
    * 而「只改年龄与衣服颜色」的雷同用例是 98%，中间余量极大。
    *
-   * image.sheet 刻意不查：三分区排版规范是大段固定文本，真实角色之间本来就有 63%
-   * 重合，设门必然误拦——误拦的门比没有门更糟。
+   * image.sheet 刻意不查：上下布局与五条基准包含大段共用文本，
+   * 对完整设定图提示词做雷同度检查会误拦。
    */
   const promptSim = (a, b) => {
     const words = (s) => new Set(String(s ?? '').toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 2));
@@ -768,7 +768,7 @@ const marked = (s) => esc(s).replace(INFERRED, (m) => `<span class="inf">${m}</s
 
 const IMPORTANCE_ORDER = ['protagonist', 'major', 'supporting', 'minor'];
 
-/** 左栏的一条角色。缩略图取设定图的左半边——那里正好是半身像。 */
+/** 左栏的一条角色。缩略图截取设定图上部左侧的正面面部特写。 */
 function renderRosterItem(c, index, t) {
   const meta = [c.persona?.gender, c.persona?.ageRange].filter(Boolean).join(' · ');
   const hay = [
@@ -1159,11 +1159,11 @@ button{font-family:inherit}
 .rost:hover{background:#00000006}
 .rost.on{background:var(--panel);border-left-color:var(--seal)}
 .rost:focus-visible{outline:2px solid var(--seal);outline-offset:-2px}
-/* 缩略图 = 设定图的左栏切片。设定图固定 16:9、左栏占约 34%，
-   所以把整图按 1/0.34 ≈ 294% 放大再左上对齐，裁出来正好是半身像。
-   比 <img> + object-position 可控：不依赖浏览器怎么 cover。 */
+/* 缩略图截取上部左侧的正面面部特写。16:9 设定图上部占 1/3 高度，
+   整图高度放大到缩略图的 300%，裁出完整上部高度；正面特写中心位于画布宽度 1/4。
+   横向背景定位 19.2308% = (4/3 - 1/2) / (16/3 - 1)，让该中心落在正方形缩略图中心。 */
 .rost-thumb{display:block;width:76px;height:76px;border:1px solid var(--rule-2);border-radius:6px;
-  background:#fff no-repeat left top;background-size:294% auto}
+  background:#fff no-repeat 19.2308% top;background-size:auto 300%}
 .rost-body{min-width:0}
 .rost-top{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
 .rost-n{font:500 10px/1 var(--mono);color:var(--ink-3);font-style:normal}

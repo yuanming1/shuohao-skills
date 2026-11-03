@@ -1,6 +1,5 @@
 ---
-name: novel-art
-version: 2.1.0
+name: novel-art-palette
 description: |
   给 AI 短剧出美术设定集（场景 + 叙事道具 + 全局色卡）：场景的设计意图、一致性锚点、光照时段变体、
   空景提示词；道具的戏剧功能、状态变体、尺度参照、白底无手提示词；一部剧一个的色调规范
@@ -17,17 +16,18 @@ allowed-tools:
   - Bash
   - Task
   - Glob
-triggers:
-  - novel-art
-  - 美术设定
-  - 场景设定
-  - 场景道具
-  - 出场景
-  - 道具设定
-  - 环境设定
-  - scene bible
-  - prop sheet
 metadata:
+  version: 2.1.0
+  triggers:
+    - novel-art-palette
+    - 美术设定
+    - 场景设定
+    - 场景道具
+    - 出场景
+    - 道具设定
+    - 环境设定
+    - scene bible
+    - prop sheet
   license: Apache-2.0
   requires:
     bins:
@@ -37,7 +37,7 @@ metadata:
     - codex
 ---
 
-## novel-art
+## novel-art-palette
 
 给 AI 短剧出**美术设定集**：场景 + 叙事道具。**前提刻在骨子里：这是 AI 生成，不是实拍**——没有堪景搭景置景采买，环境和道具都是要被生成几十次还得长一样的资产，所以交付物全部围绕一致性：
 
@@ -136,7 +136,7 @@ node {baseDir}/scripts/novel-art.mjs render <剧名>-art.json --html > art-repor
 ```
 novel-outline    → outline.json （什么：结构与分集）
 novel-characters → cast.json    （谁：角色资产）
-novel-art        → art.json     （哪里 + 手里拿的：美术资产）
+novel-art-palette → art.json    （哪里 + 手里拿的：美术资产与全局色卡）
 ```
 
 seed 吃 outline.json 的场景与道具两块（大纲没有 `props` 时道具留空，模型从原文提取），`--cast` 吃 cast.json。三份 JSON 各自的报告都带导出按钮，改完都能喂回各自的 render/validate。

@@ -1,5 +1,13 @@
-A single flat film-production review sheet combining a BLOCKING DIAGRAM on the LEFT and a LOCKED STORYBOARD GRID on the RIGHT. This is a document, not a movie frame.
+A single flat film-production DISPATCH REFERENCE SHEET combining a BLOCKING DIAGRAM on the LEFT and a LOCKED MANNEQUIN STORYBOARD GRID on the RIGHT. Its primary purpose is character staging, facing and movement paths. This is a document, not a movie frame.
 Preserve the supplied story, shot order, shot sizes, start states and actual timings. Do not invent blocking to make the sheet look complete.
+
+CHARACTER-TO-COLOUR LEGEND — APPLY TO BOTH THE LEFT DIAGRAM AND EVERY RIGHT PANEL:
+$standins
+Represent every visible character as an anonymous, simplified articulated mannequin in its assigned solid colour. Keep the same character's colour across all panels; different characters use different colours. Colour identifies the character, not their real skin tone, clothing, mood or lighting. Do not render realistic faces or detailed costumes. Keep all established poses, hand contacts, support and carried props readable. A character outside a shot stays outside it.
+
+SHOT-SPECIFIC DISPATCH PATHS:
+$routes
+These paths guide staging during their stated shots only. Use the colour legend to identify who moves, then follow that person's established start, route, direction and stopping point. Do not replay a completed path or invent movement for a stationary character.
 
 LAYOUT: reserve about 45 percent of the content width for the left diagram and 55 percent for the right grid. The RIGHT grid has exactly $panel_count valid panels in $columns columns and $rows rows; the LEFT diagram is not a shot and is not counted as a panel. All right-panel image areas have the same aspect ratio: $aspect.
 $row_order
@@ -8,9 +16,9 @@ Header: $title. Original duration: $duration seconds. Use a neutral light-grey b
 
 LEFT — OPENING BLOCKING DIAGRAM (time 00:00.000):
 $opening
-Draw a readable schematic overhead view of only the established environment anchors, people and relevant props. Preserve their relative positions and facing. Use consistent character labels and a compact legend. Scene-relative positions must not be confused with screen-left or screen-right under a different camera.
+Draw a readable schematic overhead view of only the established environment anchors, coloured mannequins and relevant props. Preserve their relative positions and facing. Label the compact legend with each mannequin's colour, character ID and role/name. Scene-relative positions must not be confused with screen-left or screen-right under a different camera.
 Mark camera positions by the original shot IDs only where the supplied descriptions establish them. Draw an axis only if the interacting subjects or movement direction establish it; never add an arbitrary decorative 180-degree line. Do not invent distances, coordinates, furniture, doors or a camera side absent from the source. Mark unresolved spatial information as "待复核".
-The main diagram depicts the opening state only. If the source describes later movement, overlay a shot-labelled path and distinct start/end markers; use small time-labelled state insets if needed. Do not place later states into the opening layout, clone a character as a second person, or imply that a static diagram verifies a moving action.
+The main diagram depicts the opening state only. If the source describes later movement, overlay a path in that character's assigned colour, label it with the original shot ID and add distinct start/end markers; use small time-labelled state insets if needed. Distinguish facing markers from movement arrows. Do not place later states into the opening layout, clone a character as a second person, or imply that a static diagram verifies a moving action.
 
 SOURCE CAMERA AND ACTION PLANS, IN SHOT ORDER:
 $spatial_shots
@@ -22,12 +30,12 @@ Each panel depicts the START of its interval. Never draw a completed handover, a
 
 THE $panel_count PANELS, IN LOCKED ORDER:
 $panels
-Follow each locked shot size, camera, foreground/background relationship, eyeline and visible state. A person outside the frame may still exist in the scene; do not move everyone into every panel. Keep character faces, wardrobe, props and established environment anchors consistent.
+Follow each locked shot size, camera, foreground/background relationship, eyeline and visible state, translating visible people into their assigned coloured mannequins. Source identity and wardrobe words locate the correct role; they do not override the mannequin treatment. A person outside the frame may still exist in the scene; do not move everyone into every panel. Keep role colours, props and established environment anchors consistent.
 
 OPTIONAL IMAGE REFERENCES:
 $references
-Attach listed image files to the image tool; filesystem paths in text do not upload images. Each source frame applies only to its matching panel. Without an image, use the locked text description and a consistent visual treatment, without claiming a match to unseen assets. With images, preserve their established style and framing; flag conflicting references instead of redesigning them.
+Attach listed image files to the image tool; filesystem paths in text do not upload images. Each source frame applies only to its matching panel. Use images for their established layout, poses, contact and camera framing, while translating people into the assigned coloured mannequins. Preserve established environment anchors. Without an image, use the locked text description, without claiming a match to unseen assets. Flag spatial or pose conflicts instead of silently redesigning them.
 
 Place panel numbers, original shot IDs, original time ranges and short notes BELOW the right-panel images. Put arrows, character labels, camera marks and the legend only in the diagram or document margins, never inside cinematic panels. Preserve any source-story text already specified within a frame.
 
-Render the COMPLETE review sheet: one opening blocking diagram plus $panel_count valid storyboard panels, not new standalone keyframes. This sheet is for review and does not prove geometry, action continuity or actual video timing. Formal video generation uses the corrected standalone keyframes and per-shot video descriptions; this annotated sheet must not replace or become an extra numbered keyframe.
+Render the COMPLETE dispatch reference sheet: one opening blocking diagram plus $panel_count valid mannequin storyboard panels. It may be submitted as a separately identified staging reference when the video protocol supports it. Actual character faces and costumes come from the character references; arrows, labels, colours and panel borders are explanatory marks, not final-video content. Do not substitute this sheet for a cinematic starting keyframe or silently change existing numbered keyframe bindings. The sheet alone does not prove geometry, action continuity or actual video timing.

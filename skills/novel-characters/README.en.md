@@ -10,7 +10,7 @@ Feed it a novel or a short story, and get a complete design bible for every char
 - **Profile** — gender, age, standing, appearance, temperament, motivation, arc, relationships, each backed by **verbatim quotes from the source**
 - **Design prompts** — bilingual image prompt + negative prompt + tags, ready for Midjourney / SD / GPT-Image. The look is not written into the prompt: the caller prepends one style instruction to the whole batch at generation time
 - **Voice prompts** — timbre, pitch, pace, accent, emotion, plus a voice-design prompt for Qwen3-TTS / ElevenLabs Voice Design
-- **A character model sheet** — **one per character**: a 16:9 image in three zones: an ID-photo-style bust on the left (~34%, the reference for the face design), a full-body turnaround top-right, and a strip of key-detail close-ups bottom-right. White background for clean cut-out. **This skill does not generate the image** — the instruction is the deliverable
+- **A character model sheet** — **one per character**: a pure-white 16:9 canvas. The upper third contains front and strict left 90-degree facial close-ups; the lower two-thirds contains a headless front body view, a headless left 90-degree body view, and a complete back view with its head. Five invisible references fix the foot-sole, hip and shoulder levels, neck cuts at chin-base height, and height proportions. No dividing lines, letters, numbers or text. **This skill does not generate the image** — the instruction is the deliverable
 - **Relationship map** — a whole-cast view inside the report: who is tied to whom, and how. Hover a character to light up every link they are part of, click to jump to their profile
 
 Outputs `cast.json`, a Markdown report, and a self-contained `report.html` you can just double-click.
@@ -26,7 +26,7 @@ Chinese, English and Japanese UI strings ship built in. **Other languages work t
 
 ![report.html](assets/report.webp)
 
-A character model sheet (Shen Zhiwei, from the bundled sample story):
+Previous-layout preview (Shen Zhiwei, from the bundled sample story; see [sheet.md](references/sheet.md) for the current upper/lower layout and prompt template):
 
 ![model sheet](assets/sheet.jpg)
 
@@ -152,7 +152,7 @@ node scripts/novel-characters.mjs slug "胡二爷"                  # filesystem
 SKILL.md                 the workflow the agent reads
 scripts/
   novel-characters.mjs   chunk / merge / assemble / validate / render / slug
-  selftest.mjs           329 assertions, never calls a model
+  selftest.mjs           337 assertions, never calls a model
 references/
   roster-pass.md         pass 1: scanning for characters
   profile-pass.md        pass 2: building a character sheet (8 hard rules)
@@ -173,6 +173,6 @@ In `examples/渡口.txt` the peddler is only ever referred to by a nickname and 
 node scripts/selftest.mjs
 ```
 
-329 assertions across chunking, alias merging, assembly, localization, validation, and rendering. No model calls, no quota, runs in about a second. Run it before anything else after touching the scripts.
+337 assertions across chunking, alias merging, assembly, localization, validation, and rendering. No model calls, no quota, runs in about a second. Run it before anything else after touching the scripts.
 
 **Only tested on macOS with Node 24.** There is no platform-specific code, so Linux and older Node releases should be fine, but that is **unverified**.

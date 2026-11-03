@@ -41,9 +41,9 @@ class BlockingTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.output = self.root / 'output'
 
-    def cli(self, *args, script=None):
+    def cli(self, *args, script=None, command='export'):
         return subprocess.run([sys.executable, '-X', 'utf8', str(script or SKILL / 'scripts/blocking.py'),
-                               'export', *map(str, args)], capture_output=True, text=True, encoding='utf-8', timeout=30)
+                               command, *map(str, args)], capture_output=True, text=True, encoding='utf-8', timeout=30)
 
     def from_plan(self, *args):
         return self.cli('--plan', FIXTURE, '--out', self.output, *args)
@@ -51,6 +51,11 @@ class BlockingTests(unittest.TestCase):
     def write_board(self):
         path = self.root / 'source.json'
         path.write_text(json.dumps(self.board, ensure_ascii=False), encoding='utf-8')
+        return path
+
+    def write_plan(self):
+        path = self.root / 'dispatch-plan.json'
+        path.write_text(json.dumps(self.package, ensure_ascii=False), encoding='utf-8')
         return path
 
     def directory(self, sid='E01-01'):
@@ -179,6 +184,7 @@ class BlockingTests(unittest.TestCase):
     def test_local_export_does_not_touch_unselected_segments(self):
         second = copy.deepcopy(self.segment)
         second['id'] = 'E01-02'
+        second['blocking'] = second['blocking'].replace('E01-01-f', 'E01-02-f')
         self.board['episodes'][0]['segments'].append(second)
         path = self.write_board()
         args = ('--storyboard', path, '--out', self.output)
@@ -236,6 +242,134 @@ class BlockingTests(unittest.TestCase):
         self.segment['id'] = '../escape'
         with self.assertRaises(ValueError):
             blocking.make_package(self.segment)
+
+    def test_dispatch_legend_and_routes_are_consumed_without_schema_changes(self):
+        prompt = blocking.render_prompt(self.package)
+        self.assertIn('蓝色人偶 = C01 快递员', prompt)
+        self.assertIn('橙色人偶 = C02 店员', prompt)
+        self.assertIn('从西侧入口沿柜台外侧通道走到柜台外侧停下', prompt)
+        self.assertTrue(blocking.five_fields(self.package))
+        self.assertEqual(set(self.package['planning']), {'opening', 'shots'})
+
+    def test_missing_ambiguous_or_wrong_segment_dispatch_is_pending(self):
+        opening = self.package['planning']['opening']
+        for updated in (
+            opening.split('【调度人偶对应】')[0],
+            opening.replace('橙色人偶', '蓝色人偶'),
+            opening.replace('- C02 店员', '- C01 店员'),
+            opening.replace('E01-01-f1', 'E02-01-f1'),
+            opening.replace('【调度路径参考】', '旧路径标题'),
+        ):
+            with self.subTest(opening=updated):
+                self.package['planning']['opening'] = updated
+                self.assertTrue(blocking.validate_package(self.package))
+        self.package['planning']['opening'] = opening
+
+    def test_source_character_ids_must_be_covered(self):
+        self.segment['cuts'][0]['characters'] = ['C01', 'C02', 'C03']
+        _, missing = blocking.make_package(self.segment)
+        self.assertTrue(any('C03' in item for item in missing))
+
+    def test_no_people_or_stationary_segment_needs_no_invented_mannequins_or_arrows(self):
+        from dispatch import read_dispatch
+        for text in (
+            '原开场事实。\n【调度人偶对应】\n本段无人出场。\n【调度路径参考】\n本段无人物位移。',
+            '原开场事实。\n【调度人偶对应】\n- C01 快递员：蓝色人偶\n【调度路径参考】\n本段无人物位移。',
+        ):
+            _, _, missing = read_dispatch(text, ['E01-01-f1', 'E01-01-f2'])
+            self.assertEqual(missing, [])
+
+    def test_sync_dispatch_roundtrip_preserves_opening_shots_and_unknown_data(self):
+        from dispatch import base_opening
+        self.segment['blocking'] = base_opening(self.segment['blocking'])
+        self.segment['cuts'][0]['characters'] = ['C01', 'C02']
+        self.segment['projectNote'] = '已有项目数据必须保留'
+        original = copy.deepcopy(self.board)
+        source, plan = self.write_board(), self.write_plan()
+        result = self.cli('--storyboard', source, '--plan', plan, command='sync-dispatch')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        updated = blocking.load_json(source)
+        target = updated['episodes'][0]['segments'][0]
+        self.assertEqual(target['blocking'], self.package['planning']['opening'])
+        self.assertEqual(base_opening(target['blocking']), original['episodes'][0]['segments'][0]['blocking'])
+        target['blocking'] = original['episodes'][0]['segments'][0]['blocking']
+        self.assertEqual(updated, original)
+        # 再次同步保持幂等，导出从正式 blocking 读取同一份映射和路径。
+        before = source.read_bytes()
+        self.assertEqual(self.cli('--storyboard', source, '--plan', plan, command='sync-dispatch').returncode, 0)
+        self.assertEqual(source.read_bytes(), before)
+        result = self.cli('--storyboard', source, '--out', self.output)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        package = blocking.load_json(self.directory() / 'grid-input.json')
+        self.assertEqual(package['planning']['opening'], self.package['planning']['opening'])
+        self.assertFalse(list(source.parent.glob('source.json.*.tmp')))
+
+    def test_sync_rejects_stale_or_changed_scene_contract_without_writing(self):
+        source = self.write_board()
+        before = source.read_bytes()
+        for change in ('opening', 'frame', 'action', 'time'):
+            with self.subTest(change=change):
+                self.package = blocking.load_json(FIXTURE)
+                if change == 'opening':
+                    self.package['planning']['opening'] = self.package['planning']['opening'].replace('入口位于西侧', '入口位于东侧')
+                elif change == 'frame':
+                    self.package['panels'][0]['frame'] += '新增人物。'
+                elif change == 'action':
+                    self.package['planning']['shots'][0]['action'] += '新增移动。'
+                else:
+                    self.package['panels'][-1]['time'][1] = '10'
+                result = self.cli('--storyboard', source, '--plan', self.write_plan(), command='sync-dispatch')
+                self.assertEqual(result.returncode, 3, result.stderr)
+                self.assertEqual(source.read_bytes(), before)
+
+    def test_sync_pending_material_does_not_write(self):
+        source = self.write_board()
+        before = source.read_bytes()
+        self.package['planning']['opening'] = '只有原开场，尚未分配人偶颜色。'
+        result = self.cli('--storyboard', source, '--plan', self.write_plan(), command='sync-dispatch')
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertEqual(source.read_bytes(), before)
+
+    def test_sync_checks_cross_segment_role_colors_and_names(self):
+        second = copy.deepcopy(self.segment)
+        second['id'] = 'E01-02'
+        second['blocking'] = second['blocking'].replace('E01-01-f', 'E01-02-f').replace('蓝色人偶', '绿色人偶')
+        self.board['episodes'][0]['segments'].append(second)
+        source, plan = self.write_board(), self.write_plan()
+        before = source.read_bytes()
+        result = self.cli('--storyboard', source, '--plan', plan, command='sync-dispatch')
+        self.assertEqual(result.returncode, 3, result.stderr)
+        self.assertEqual(source.read_bytes(), before)
+
+    def test_sync_rejects_missing_source_role_even_when_plan_has_no_character_field(self):
+        self.segment['cuts'][0]['characters'] = ['C03']
+        source, plan = self.write_board(), self.write_plan()
+        before = source.read_bytes()
+        result = self.cli('--storyboard', source, '--plan', plan, command='sync-dispatch')
+        self.assertEqual(result.returncode, 3, result.stderr)
+        self.assertEqual(source.read_bytes(), before)
+
+    def test_export_with_conflicting_cross_segment_colors_is_pending(self):
+        second = copy.deepcopy(self.segment)
+        second['id'] = 'E01-02'
+        second['blocking'] = second['blocking'].replace('E01-01-f', 'E01-02-f').replace('蓝色人偶', '绿色人偶')
+        self.board['episodes'][0]['segments'].append(second)
+        result = self.cli('--storyboard', self.write_board(), '--segment', 'E01-01', '--out', self.output)
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertFalse((self.directory() / 'grid-prompt.txt').exists())
+        self.assertTrue((self.directory() / 'grid.todo').exists())
+
+    def test_sync_changes_only_target_segment(self):
+        from dispatch import base_opening
+        second = copy.deepcopy(self.segment)
+        second['id'] = 'E01-02'
+        second['blocking'] = base_opening(second['blocking'])
+        self.board['episodes'][0]['segments'].append(second)
+        original = copy.deepcopy(second)
+        source = self.write_board()
+        result = self.cli('--storyboard', source, '--plan', self.write_plan(), command='sync-dispatch')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(blocking.load_json(source)['episodes'][0]['segments'][1], original)
 
     def test_portable_without_sibling_skills(self):
         portable = self.root / 'standalone'

@@ -45,10 +45,10 @@ flowchart TD
 | [**novel-art**](skills/novel-art) | 给 AI 短剧出美术设定集（场景 + 叙事道具 + 全局色卡）：一致性锚点、光照与状态变体、尺度参照、无人无手白底提示词；色卡 + 材质 DNA + 光照 DNA 一部剧一个色调规范，下游挂参考用。吃 outline.json 预填清单，12 道质量门全部脚本检查 |
 | [**novel-script**](skills/novel-script) | 给 AI 短剧写剧本：场次 + 节拍流（动作与台词交替），逐集时长按语速确定性折算，钩子前 3 拍冷开场兑现是门，台词本按角色聚合带音色提示词直接对接 TTS。10 道质量门全部脚本检查 |
 | [**novel-staging**](skills/novel-staging) | 给 AI 短剧的每一场排开场站位：先从场景图里认出能站能坐的东西、推算到俯视平面上，再按剧本排谁在哪件东西的哪一侧、坐还是站、面朝哪，程序写出开场走位句交给分镜照抄；报告是能拖动调整的俯视平面，改完导出就是新的 staging.json。8 道质量门全部脚本检查 |
-| [**novel-storyboard**](skills/novel-storyboard) | 分镜初稿：段（一次生成 ≤15 秒）→ 分镜（2–5 秒硬门）→ 分镜图提示词（主图钉 0.00 秒、子图钉各自切点），MiniMax H3 提示词的对齐指令与切点时刻逐字对账；交付画面提示词和参考图清单，export 一键出 H3 / Seedance 投产包。18 道质量门全部脚本检查 |
-| [**novel-storyboard-blocking-02**](skills/novel-storyboard-blocking/SKILL.md) | 按需补齐站位与空间：明确人物、机位、路径、遮挡及逐镜承接，同步关键帧与 H3 / Seedance 正文，可导出站位与分镜宫格提示词 |
-| [**novel-storyboard-enhance-03**](skills/novel-storyboard-enhance/SKILL.md) | 本阶段按需执行，调用后必须同时评估人物表演与摄影，既定特效增强可选；保护剧情、对白、镜号、时长和资产绑定，同步关键帧及 H3 / Seedance 正文。内置读取顺序、六道保护性程序门及独立语义复核，可单独复制 |
-| [**novel-storyboard-motion-04**](skills/novel-storyboard-motion) | 对已有分镜按需编排物品交接、身体接触与承重、施力和物理运动、跨镜动作承接，同步关键帧及 H3 / Seedance 正文。附只读对比工具，保护镜号、时长、节拍和协议绑定；物理合理性仍需语义复核 |
+| [**novel-storyboard**](skills/novel-storyboard) | 分镜初稿：段（一次生成 ≤15 秒）→ 分镜（镜长按内容分配，支持项目显式约束）→ 分镜图提示词（主图钉 0.00 秒、子图钉各自切点），MiniMax H3 提示词的对齐指令与切点时刻逐字对账；交付画面提示词和参考图清单，export 一键出 H3 / Seedance 投产包。18 道质量门全部脚本检查 |
+| [**novel-storyboard-blocking-02**](skills/novel-storyboard-blocking/SKILL.md) | 按需明确人物站位、机位、路径与遮挡，以彩色人偶宫格表达人物调度；角色颜色对应与逐镜路径写回分镜 blocking，进入【人物关系与构图逻辑】，同步关键帧与 H3 / Seedance 正文 |
+| [**novel-storyboard-enhance-03**](skills/novel-storyboard-enhance/SKILL.md) | 主动补全遗漏的表演、性格表达与关键过程，同时增强摄影，既定特效可选；保留故事事实、对白和结果，按需拆并镜头、调整时长与续段站位，同步关键帧及 H3 / Seedance 正文。六道程序门与语义复核分别检查，可单独复制 |
+| [**novel-storyboard-motion-04**](skills/novel-storyboard-motion) | v4.0.1：按需联合复核跨镜、跨段的叙事、情绪、表演和身体动作承接，编排交接、接触承重与物理运动，同步关键帧及 H3 / Seedance 正文。保护性检查保持镜号、时长、节拍和协议绑定，连续性仍需语义复核 |
 | [**seedance-fantasy-ultimate-prompt**](skills/seedance-fantasy-ultimate-prompt) | 生成修仙玄幻大招的 Seedance 2.0 提示词：围绕一次技能释放生成 15 秒单段成品，固定输出标准与强化两条，九大属性招式库与国漫级设计语言库按索引调用，带反模板化自检 |
 | [**seedance-combat-prompt**](skills/seedance-combat-prompt) | 生成 Seedance 2.0 二次元打戏提示词：15 秒标准分镜，内置九角色武学体系、三十条铁律、十五种运镜与六册兵器技法资料库，同组合招式禁止重复 |
 
@@ -61,9 +61,9 @@ flowchart TD
 | 01 分镜初稿 | `$novel-storyboard` | 根据剧本确定段落、镜号、时长、节拍与画面／视频提示词；已有合格初稿时可直接进入后续步骤。 |
 | 02 站位与空间 | `$novel-storyboard-blocking` | 按需明确人物站在哪里、摄影机在哪里、如何移动及遮挡关系。 |
 | 03 情绪与镜头增强 | `$novel-storyboard-enhance` | 调用后必须同时评估表演与摄影，按收益增强并说明保留理由；既定特效可选，空间明确后再细化表现。 |
-| 04 动作与连续状态 | `$novel-storyboard-motion` | 按需复核交接、接触、承重、物理运动与跨镜继承，再进入最终出图和视频导出。 |
+| 04 动作与连续状态 | `$novel-storyboard-motion` | 按需联合复核跨镜、跨段的叙事、情绪、表演和身体动作承接，再进入最终出图和视频导出。 |
 
-02–04 按项目问题选择，不要求全部执行；它们需要已有分镜，可以单独使用。每一步都读取上一轮最新修订稿，修订时保留原稿、另存副本，并同步关键帧描述及视频正文。后续改动影响空间或切镜时，返回核对对应安排，再复核受影响动作。
+02–04 按项目问题选择，不要求全部执行；它们需要已有分镜，可以单独使用。每一步都原位更新同一份正式 `storyboard.json`（沿用已有实际文件名），同步关键帧描述及视频正文，不创建 `-enhanced`、`-motion` 等阶段版本。增强与动作工具的 `apply` 命令接收内存中的修改前后对象，检查通过才写回；失败时保留磁盘内容。报告合成与画布导出持续读取这一文件。后续改动影响空间或切镜时，返回核对对应安排，再复核受影响动作。
 
 可以直接这样提出任务：
 

@@ -1,23 +1,24 @@
 #!/usr/bin/env node
-/** 只读比较增强前后分镜；程序门不代替故事、表演、空间或成片复核。 */
+/** 比较增强前后分镜，或校验后原位更新；程序门不代替语义与成片复核。 */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { validateBoard, differences, h3Signature, h3Problems, displayCut } from './protocol.mjs';
+import { hasCompositionChanges, reviewComposition } from './recomposition.mjs';
 
 const REQUIRED_MODES = ['performance', 'camera'];
 const MODES = [...REQUIRED_MODES, 'effects'];
 const COMMON = new Set(['frame', 'shot', 'note', 'sfx']);
 const CAMERA = new Set(['size', 'camera', 'lens', 'cameraPosition', 'composition', 'focus', 'stability']);
-const ADDABLE = new Set(['note', 'sfx', 'lighting', 'soundscape']);
+const ADDABLE = new Set([...COMMON, ...CAMERA, 'eyeline', 'lighting', 'soundscape']);
 const SIZES = ['extreme-wide', 'wide', 'medium', 'close', 'extreme-close'];
 const MOVES = ['Static Shot', 'Push In', 'Pull Out', 'Zoom In/Out', 'Pan Left/Right',
   'Truck Left/Right', 'Tilt Up/Down', 'Pedestal Up/Down', 'Arc Shot', 'Tracking Shot',
   'Shake Slightly/Strongly', 'POV', 'Roll Clockwise/Counterclockwise'];
 const STABILITY = ['stable', 'slight-shake', 'handheld'];
 const GATES = [
-  ['G01', '输入与镜头骨架'], ['G02', '剧情相关结构与镜头合同保护'],
+  ['G01', '输入与镜头骨架'], ['G02', '故事覆盖、资产与未知数据保护'],
   ['G03', '增强范围与字段合法性'], ['G04', '正文与增强依据'],
   ['G05', 'H3 结构与绑定保护'], ['G06', '逐镜同步提醒'],
 ];
@@ -57,11 +58,17 @@ function addImpact(impact, kind, label) {
   if (!impact[kind].includes(label)) impact[kind].push(label);
 }
 
-export function reviewBoards(before, after, modesText) {
+export function reviewBoards(before, after, modesText, context = {}) {
   const modes = parseModes(modesText);
   validateBoard(before);
   validateBoard(after);
   const changes = differences(before, after);
+  if (hasCompositionChanges(before, after) || context.script || context.scriptBefore) {
+    const result = reviewComposition(before, after, {
+      camera: CAMERA, sizes: SIZES, moves: MOVES, stability: STABILITY, noteIssues,
+    }, context);
+    return { changes, ...result, modes };
+  }
   const violations = [];
   const attention = new Set();
   const activeCuts = new Set();
@@ -100,7 +107,7 @@ export function reviewBoards(before, after, modesText) {
     if (typeof change.after !== 'string' || !change.after.trim()
       || (change.before === undefined && !ADDABLE.has(field))
       || (change.before !== undefined && typeof change.before !== 'string')) {
-      violations.push(`[G03] 字段必须为非空文字，缺失时仅可补充 note、sfx、lighting、soundscape：${change.path}`);
+      violations.push(`[G03] 画面、动作、摄影和声音字段可补齐，修改后必须为非空文字：${change.path}`);
       continue;
     }
     if ((field === 'size' && !SIZES.includes(change.after))
@@ -207,14 +214,14 @@ export function renderReview(result) {
     ...(!result.violations.length && !result.attention.length ? ['未发现程序可确定的问题；仍需完成下列语义复核。'] : []), '',
     '## 待完成的语义复核', '',
     '- 剧情与收益：有何具体改善，是否改变人物意图、能力、对白或事件结果？',
-    '- 表演与可见性（必选）：说明整组起始状态、已有触发与既定变化，复核跨镜反应是否重演或重置；逐镜说明增强收益或保留理由，景别、焦点、时长与口型是否支持反应？',
+    '- 表演与可见性（必选）：检查上游省略是否丢失进入、移动、操作或关键反应；把已有性格与意图落实到可见行动、节奏和对人的回应。缺失过程是否已经补入正文，景别、时长、口型和连续状态是否支持？',
     '- 摄影与空间（必选）：把整组观看过程对应到镜号，判断原组合怎样引导注意力；有疑点的相关镜头比较具体选择与取舍，再核对逐镜观察任务和构图配合。修改前后注意对象、关系理解或情绪发展有什么差别？机位、轴线、遮挡、路径、参考图片及原对白绑定是否相容？',
     '- 特效与连续状态：来源、变化、结果、消散是否成立，手部占用、支撑与声源是否继承？',
     '- 消费端与素材：frame、shot、摄影字段、H3 和声音是否一致，哪些图片及导出包需更新？', '',
     '以上项目均待 Agent 按镜头组及具体镜号填写通过、不适用或未解决及其依据；程序不自动划分镜头组或填写通过。',
     '增强说明应记录各组镜号范围、对应镜号的观看过程、原组合判断、选定调整及前后表达差别，并区分仅供上下文读取的镜号。全组保留时说明各镜怎样配合；局部改善如实限定收益，逐镜结论可引用具体整组依据。',
     '脚本可以整理原文和已作出的判断，不得按未修改状态自动生成保留成立的结论。仅复述原动作并附通用理由不足以证明评估完成；缺少判断的镜头标为待评估。镜号覆盖和报告行数只证明材料覆盖。',
-    '表演与摄影必须覆盖评估范围，未修改也需说明保留理由；未选择特效时仅特效增强可整项标为不适用，连续状态仍须复核。缺少整组评估、整组复核或任一必选方向的逐镜评估时为部分完成，参数齐全不证明评估已完成。', '',
+    '表演与摄影必须覆盖评估范围，未修改也需说明保留理由；必要的补演、拆并镜、时长重分或续段站位调整应在本次完成并同步。上游写了省略、镜头原本存在或程序门通过，都不是保留理由。未选择特效时仅特效增强可整项标为不适用，连续状态仍须复核。缺少实际补全、整组复核或任一必选方向的逐镜评估时为部分完成。', '',
     '## 受影响材料', '',
     `需核对或重出关键帧：${list(result.impact.frames)}。`, '',
     `需复核空间：${list(result.impact.spatial)}。`, '',
@@ -223,36 +230,82 @@ export function renderReview(result) {
     'H3、shot 或声景改变后重新核对视频导出包。旧图片和视频不会随文字自动更新。', '',
     '## 字段对比', ''];
   for (const change of result.changes) lines.push(`### ${change.path}`, '', '原稿：', '', fenced(change.before), '', '修订：', '', fenced(change.after), '');
-  if (!result.changes.length) lines.push('两份数据相同，没有要求为了增强而改写。', '');
+  if (!result.changes.length) lines.push('两份数据相同；须说明省略与人物表现已经充分的具体依据，才能认定无需增强。', '');
   return lines.join('\n');
 }
 
 function parseArgs(argv) {
-  if (argv[0] !== 'review') throw new Error('命令格式：review --before 原稿.json --after 增强稿.json --modes performance,camera [--out 对比.md]；特效可追加 effects');
+  const command = argv[0];
+  if (!['review', 'apply'].includes(command)) throw new Error('命令格式：apply --file storyboard.json --modes performance,camera；标准输入提供 {before, after}，或使用 review --before 原稿.json --after 修订稿.json');
   const options = {};
+  const allowed = command === 'apply' ? ['--file', '--modes', '--out', '--script'] : ['--before', '--after', '--modes', '--out', '--script', '--script-before'];
   for (let i = 1; i < argv.length; i += 2) {
     const key = argv[i];
-    if (!['--before', '--after', '--modes', '--out'].includes(key) || Object.hasOwn(options, key)
+    if (!allowed.includes(key) || Object.hasOwn(options, key)
       || !argv[i + 1] || argv[i + 1].startsWith('--')) throw new Error(`无效或重复参数：${key}`);
     options[key] = argv[i + 1];
   }
-  if (!options['--before'] || !options['--after']) throw new Error('必须提供 --before 和 --after');
+  if (command === 'apply') {
+    if (!options['--file']) throw new Error('apply 必须提供 --file');
+  } else if (!options['--before'] || !options['--after']) throw new Error('必须提供 --before 和 --after');
   parseModes(options['--modes']);
   return options;
 }
 
+function applyInPlace(options) {
+  const target = fs.realpathSync(options['--file']);
+  const parse = (text) => JSON.parse(text.replace(/^\uFEFF/, ''));
+  const input = parse(fs.readFileSync(0, 'utf8'));
+  if (!input || typeof input !== 'object' || Array.isArray(input)
+    || !Object.hasOwn(input, 'before') || !Object.hasOwn(input, 'after')) {
+    throw new Error('标准输入必须提供 {before, after}：修改前完整对象与内存修订后的完整对象');
+  }
+  const current = fs.readFileSync(target, 'utf8');
+  if (!isDeepStrictEqual(parse(current), input.before)) throw new Error('storyboard 已变化，未写入；请重新读取当前文件后修订');
+  const scriptText = options['--script'] ? fs.readFileSync(options['--script'], 'utf8') : undefined;
+  const context = { script: scriptText === undefined ? undefined : parse(scriptText), scriptBefore: input.scriptBefore };
+  const result = reviewBoards(input.before, input.after, options['--modes'], context);
+  const report = renderReview(result);
+  const code = result.violations.length || result.attention.some((item) => item.startsWith('[G06]')) ? 2 : 0;
+  if (options['--out']) {
+    const out = path.resolve(options['--out']);
+    const outStat = fs.existsSync(out) ? fs.statSync(out) : null;
+    for (const inputPath of [target, options['--script']].filter(Boolean)) {
+      const protectedPath = fs.realpathSync(inputPath);
+      const protectedStat = fs.statSync(protectedPath);
+      if (out === protectedPath || (outStat && (fs.realpathSync(out) === protectedPath
+        || (outStat.dev === protectedStat.dev && outStat.ino === protectedStat.ino)))) throw new Error('报告路径不能覆盖 storyboard 或正式剧本');
+    }
+    fs.writeFileSync(out, report, 'utf8');
+    process.stdout.write(`对比报告：${out}\n`);
+  } else process.stdout.write(report);
+  if (code) {
+    process.stderr.write('检查未通过或同步待核对，storyboard 未写入。\n');
+    return code;
+  }
+  if (fs.readFileSync(target, 'utf8') !== current) throw new Error('storyboard 在检查期间变化，未写入；请重新读取后修订');
+  if (scriptText !== undefined && fs.readFileSync(options['--script'], 'utf8') !== scriptText) throw new Error('剧本在检查期间变化，未写入；请重新读取后修订');
+  if (!isDeepStrictEqual(input.before, input.after)) fs.writeFileSync(target, JSON.stringify(input.after, null, 2) + '\n', 'utf8');
+  process.stdout.write(`已原位更新：${target}\n`);
+  return 0;
+}
+
 export function main(argv = process.argv.slice(2)) {
   if (argv.length === 1 && ['--help', '-h'].includes(argv[0])) {
-    process.stdout.write('review --before 原稿.json --after 增强稿.json --modes performance,camera [--out 对比.md]\nperformance 与 camera 必选；增强既定特效时使用 --modes performance,camera,effects。\n只读比较，返回码：0 程序门通过，2 程序门失败或同步待核对，1 输入错误。\n');
+    process.stdout.write('apply --file storyboard.json --modes performance,camera [--script 正式剧本.json] [--out 对比.md]\n标准输入：{before, after}；展开剧本动作时另提供 scriptBefore 修改前剧本对象，--script 指向已同步的正式剧本。校验通过后更新原文件，不产生版本 JSON。\nreview --before 原稿.json --after 修订稿.json --modes performance,camera [--script 正式剧本.json] [--script-before 修改前剧本.json] [--out 对比.md]\nreview 保留只读比较，报告拒绝覆盖。performance 与 camera 必选；effects 可选。\n返回码：0 程序门通过，2 程序门失败或同步待核对（apply 不写入），1 输入错误。\n');
     return 0;
   }
   const options = parseArgs(argv);
+  if (argv[0] === 'apply') return applyInPlace(options);
   const beforePath = fs.realpathSync(options['--before']);
   const afterPath = fs.realpathSync(options['--after']);
   if (beforePath === afterPath) throw new Error('原稿与增强稿必须是两个独立文件');
   if (path.dirname(beforePath) !== path.dirname(afterPath)) throw new Error('两份分镜应在同一目录，以保留素材相对路径的基准');
   const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
-  const result = reviewBoards(read(beforePath), read(afterPath), options['--modes']);
+  const result = reviewBoards(read(beforePath), read(afterPath), options['--modes'], {
+    script: options['--script'] ? read(options['--script']) : undefined,
+    scriptBefore: options['--script-before'] ? read(options['--script-before']) : undefined,
+  });
   const report = renderReview(result);
   if (options['--out']) {
     fs.writeFileSync(options['--out'], report, { encoding: 'utf8', flag: 'wx' });

@@ -14,19 +14,17 @@ import { fileURLToPath } from 'node:url';
  * AI 短剧的前提刻在骨子里，三层结构也由此而来：
  *
  *   段（segment）＝ 一次视频生成调用，上限就是模型单段时长（默认 15 秒）
- *   分镜（cut）  ＝ 段内的一次剪切，2–5 秒——短剧观众的注意力节奏
+ *   分镜（cut）  ＝ 段内的一次剪切，镜长按内容分配，可由项目显式限定范围
  *   分镜图       ＝ 每个分镜一张关键帧：第 1 个分镜的是主分镜图（钉在
  *                  0.00 秒），其余是子分镜图（各钉在自己的切点时刻）
  *
  * 一段的画面由这串分镜图 + 一条 H3 提示词共同控制：多图对齐指令
  * 把每张图钉在对应秒数上，[Shot k] 的切点时刻和分镜秒数逐一对账。
- * 多切一刀的成本几乎为零，所以不心疼分镜数量，只守节奏。
+ * 按观看任务选择切镜，每切同步关键帧、动作状态与视频提示词。
  */
 
 export const DEFAULT_PARAMS = {
   maxSegmentSeconds: 15, // 视频模型单段生成上限（秒）
-  minCutSeconds: 2,      // 单个分镜下限
-  maxCutSeconds: 5,      // 单个分镜上限——3 秒左右是短剧的呼吸
   maxOnScreen: 3,        // 单个分镜同框人数上限，超了必须带拆解说明
   tolerance: 0.15,       // 每集总时长对剧本目标的容差
 };
@@ -617,7 +615,10 @@ export function gateReport(board, ctx = {}) {
       cuts.forEach((cut, ci) => {
         const cid = `${sid}#${ci + 1}`;
 
-        if (!(cut?.seconds >= params.minCutSeconds) || cut.seconds > params.maxCutSeconds) {
+        if (!Number.isFinite(cut?.seconds) || cut.seconds <= 0
+          || cut.seconds > params.maxSegmentSeconds
+          || (params.minCutSeconds != null && cut.seconds < params.minCutSeconds)
+          || (params.maxCutSeconds != null && cut.seconds > params.maxCutSeconds)) {
           bad.cutLen.push(`${cid} ${cut?.seconds ?? '?'} 秒`);
         }
         if ((cut?.characters ?? []).length > params.maxOnScreen && !String(cut?.note ?? seg?.note ?? '').trim()) {
@@ -772,7 +773,7 @@ export function gateReport(board, ctx = {}) {
 
   add('coverage', '剧本节拍被恰好一次、按顺序、连续认领（分镜级）', bad.coverage.length === 0, script ? bad.coverage.join('；') : SKIP_SCRIPT);
   add('segment-cap', `每段 0 < 总秒数 ≤ ${params.maxSegmentSeconds}（一次生成的上限）`, eps.length > 0 && bad.segCap.length === 0, bad.segCap.join('；'));
-  add('cut-length', `每个分镜 ${params.minCutSeconds}–${params.maxCutSeconds} 秒——短剧的注意力节奏`, eps.length > 0 && bad.cutLen.length === 0, bad.cutLen.join('；'));
+  add('cut-length', '每个分镜时长为正有限秒数，符合单段上限与项目显式镜长范围', eps.length > 0 && bad.cutLen.length === 0, bad.cutLen.join('；'));
   add('dialogue-fit', '认领节拍的台词装得进分镜秒数', bad.fit.length === 0, script ? bad.fit.join('；') : SKIP_SCRIPT);
   add('ep-duration', `每集总时长在剧本目标 ±${Math.round(params.tolerance * 100)}% 内`, bad.duration.length === 0, script ? bad.duration.join('；') : SKIP_SCRIPT);
   add('crowd', `单个分镜同框 ≤ ${params.maxOnScreen} 人，超了必须带拆解说明`, bad.crowd.length === 0, bad.crowd.join('；'));
@@ -992,7 +993,7 @@ export function slug(name) {
 const GATE_LABELS_EN = {
   'coverage': 'Every script beat claimed exactly once, in order, contiguous (cut level)',
   'segment-cap': 'Each segment 0 < total ≤ {1}s (the single-generation cap)',
-  'cut-length': 'Every cut {0}–{1}s — the short-drama attention rhythm',
+  'cut-length': 'Every cut has a positive finite duration within the segment cap and any explicit project bounds',
   'dialogue-fit': 'Dialogue of the claimed beats fits within the cut duration',
   'ep-duration': 'Episode total within ±{0}% of the script\'s target',
   'crowd': 'At most {0} characters on screen per cut; more requires a breakdown note',
@@ -1095,7 +1096,7 @@ const I18N = {
     fmtMin: (sec) => `${Math.floor(sec / 60)} 分 ${Math.round(sec % 60)} 秒`,
     unitSeg: '段',
     unitCut: '切',
-    colophon: '分镜由模型依据剧本切分：段 = 一次生成（≤15 秒），分镜 = 段内 2–5 秒的剪切，每个分镜一张关键帧图。对齐指令、切点时刻、台词、提示词纪律全部由脚本确定性对账。分镜图出图走 codex，环境与角色设定图当参考图。',
+    colophon: '分镜由模型依据剧本切分：段 = 一次生成（默认上限 15 秒），分镜 = 段内剪切（镜长按内容分配，项目可显式限定范围），每个分镜一张关键帧图。对齐指令、切点时刻、台词、提示词纪律全部由脚本确定性对账。分镜图出图走 codex，环境与角色设定图当参考图。',
   },
   en: {
     langCode: 'en',
@@ -1163,7 +1164,7 @@ const I18N = {
     fmtMin: (sec) => `${Math.floor(sec / 60)} min ${Math.round(sec % 60)} s`,
     unitSeg: 'seg',
     unitCut: 'cuts',
-    colophon: 'Cut by the model from the script: a segment = one generation call (≤15s), a cut = a 2–5s edit inside it, one keyframe per cut. Alignment lines, cut marks, dialogue and prompt discipline are all audited deterministically by the script. Frames are generated through codex with the scene and character sheets as references.',
+    colophon: 'Cut by the model from the script: a segment = one generation call (15s default cap), a cut = an edit inside it (duration follows the content, with optional project bounds), one keyframe per cut. Alignment lines, cut marks, dialogue and prompt discipline are all audited deterministically by the script. Frames are generated through codex with the scene and character sheets as references.',
   },
 };
 

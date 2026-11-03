@@ -6,23 +6,27 @@
 
 **Step 01 in this group; invoke `$novel-storyboard`.** Recommended order: 01 draft → 02 blocking and space → 03 performance and camera → 04 motion and continuity. Steps 02–04 are optional and each uses the latest revised storyboard. An accepted draft can enter a later step directly. Numbers identify display names and workflow order; this skill remains independently usable.
 
+All passes update the same canonical `storyboard.json` in place, retaining its existing filename. Do not create `-enhanced` or `-motion` storyboard versions; reports, grids and canvas exports keep reading this file.
+
 **v2.0.1 (fork): plan action continuity before writing prompts.** Each cut records its starting state, action, ending state and handoff in the existing `cut.note`; `frame`, `shot` and `h3Prompt` share that plan. Markdown / HTML reports show these notes, flag missing plans for manual review, and state up front that structural gates do not verify action semantics. No new JSON fields, no new gates; see `references/continuity.md`.
+
+**Movement and time ellipses belong in the draft.** A script's instruction to skip a walk still needs an edit the audience can understand. Preserve any approach, arrival or response needed for the relationship and dialogue to make sense, and budget time for it. Legitimate ellipses remain available; a note saying “already arrived” does not establish the screen action. Review the actual visual and sound instructions without the production notes; see the [continuity rules](references/continuity.md#镜间移动与时间省略).
 
 **Combat uses an automatic, optional branch.** Before segmenting, identify continuous exchanges, pursuit with counterattacks, throws and escapes, or weapon and spell combat. Plan the full exchange first, then divide it into generation segments that preserve possession, defense and ending states. Standoffs, isolated contact and ordinary chases use normal storyboarding; exit the branch when the exchange ends. The [combat direction reference](references/combat-direction.md) and its supporting resources are local to this skill, with no additional skill invocation or installation required. Existing fields, prompt protocols and all 18 structural gates still apply. The original example establishes its [story](examples/盐仓脱围-story.md) before showing the [combat treatment](examples/盐仓脱围-combat.md).
 
 **Review every combat cut before delivery.** The [C01–C12 review criteria](references/combat-review.md) define acceptance conditions, rejection examples, missing-evidence decisions and issue records. They cover story authority, capabilities, exchanges, distance, possession, support, defense, timing, continuity, prompt alignment, camera clarity and audiovisual feedback. A scoped text review passes only when all applicable criteria and structural validation pass; generated images and video require inspection of the actual results.
 
-Storyboarding for AI short drama: turns novel-script's beat flow into a worklist you can hand straight to a video model. This is the first layer in the pipeline that talks directly to that model, and the premise is baked in: **shots are generated, so one more cut costs almost nothing** — and the short-drama attention span runs on ~3-second cuts. Hence a three-level structure:
+Storyboarding for AI short drama: turns novel-script's beat flow into a worklist you can hand straight to a video model. First decide which actions, reactions and results the audience needs to see, then arrange cuts within the project's timing and continuity constraints. Each additional cut needs a keyframe and a state handoff. The structure has three levels:
 
 ```
 segment = one video-generation call, ≤ 15s, never crosses scenes
- ├─ cuts × 3–5 = intra-segment edits, 2–5s each (hard gate), each claiming script beats
+ ├─ cuts = intra-segment edits with content-driven durations, each claiming script beats
  ├─ frames    = one keyframe per cut: the master frame pinned at 0.00s,
  │              sub-frames pinned at their own cut marks
  └─ H3 prompt = one per segment; multi-picture alignment + [Shot k] cut times audited verbatim
 ```
 
-- **A dialogue's shot–reverse-shot lives inside one segment, one generation** — wide, close on A, close on B are separate 2–5s cuts, each composition controlled by its own storyboard frame instead of gambling on prose
+- **Choose shots by what the audience needs to observe** — dialogue can use a shared view, shot–reverse-shot or a listener's reaction. Moving shots specify the subject, camera, environmental references and visible endpoint. Each cut has its own starting keyframe; see [cut planning](references/storyboard-pass.md) and [shot writing](references/shot-writing.md)
 - **The alignment instruction is derived, not written** — the multi-picture line (`Picture 2 aligns with the 3.00-second mark…`) and every `[Shot k] At 00:0X.XXX` cut time are computed from cut durations, and validate audits them **character for character**: change a duration without updating the prompt and it blocks
 - **Prompts follow the official spec: English by default, one shot per line** — each shot on its own line with its cut time; dialogue, lyrics and on-screen text keep their original language per the official rules (`<d>[Chinese] …</d>` verbatim). `promptLang: 'zh'` switches the whole prompt to Chinese. The writing spec is internalized as `references/h3-prompt.md` — **this skill is self-contained and depends on no external skill**
 - **Frames are asset composition, not invention** — every frame carries a reference manifest: the scene / character / prop sheets it must be built from. **This skill does not generate the images**; the prompt and that manifest are the deliverable
@@ -39,7 +43,7 @@ Same stance as the other four skills in this repo: **a checklist the model grade
 | --- | --- |
 | **Full beat coverage** | every script beat claimed exactly once, in order, contiguous, cut-level |
 | Segment duration | 0 < Σcuts ≤ 15s (the single-generation cap; tune `params.maxSegmentSeconds`) |
-| **Cut duration** | every cut 2–5s — the ~3s rhythm is a **hard gate**, not advice |
+| **Cut duration** | no fixed default range; validates positive finite durations, the segment cap and any explicit `params.minCutSeconds` / `params.maxCutSeconds`; passing the checks does not establish effective editing rhythm |
 | Dialogue fits | dialogue seconds of claimed beats ≤ cut seconds, per cut |
 | Episode total | Σ segments within ±15% of the script's `targetSeconds` |
 | On-screen cap | ≤ 3 characters per cut, more requires a breakdown note |
@@ -130,7 +134,7 @@ node scripts/novel-storyboard.mjs export sb.json --script script.json   # per-se
 node scripts/selftest.mjs
 ```
 
-351 assertions — beat expansion, H3 skeleton derivation, Seedance assembly, stats and batching, gate-defeating cases, recipe-card parsing and mounting, seed, rendering (both report UI languages, continuity notes and frame-slot aspect), H3 and Seedance export. No model calls, runs in about a second.
+372 assertions — beat expansion, H3 skeleton derivation, Seedance assembly, stats and batching, gate-defeating cases, recipe-card parsing and mounting, seed, rendering (both report UI languages, continuity notes and frame-slot aspect), H3 and Seedance export. No model calls, runs in about a second.
 
 The bundled example (`examples/渡口-storyboard.json`) is a complete episode-1 storyboard — 10 segments, 34 cuts claiming all 35 script beats at ~3.5s per cut, 119s against a 120s target, 2 generation batches, every segment carrying a fully audited H3 prompt.
 

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -118,7 +118,7 @@ test("关键帧保留最终画面原文，规划备注进入说明节点", (t) =
     assert.ok(instructions.includes("图片1 ← E01-01 · 关键帧 1"));
     assert.ok(instructions.includes("图片2 ← E01-01 · 关键帧 2"));
     for (const label of ["H3", "豆包 Seedance"]) assert.deepEqual(incoming(project, nodeNamed(project, `E01-01 · ${label} 视频`)), []);
-    assert.equal(JSON.parse(entries.get("source/canvas-input.json")).version, 4);
+    assert.equal(JSON.parse(entries.get("source/canvas-input.json")).version, 5);
     const second = nodeNamed(project, "E01-01 · 关键帧 2");
     assert.ok(second.position.x > frame.position.x + 340 + 96 + 340); // 画布默认在右侧创建结果图片。
     validate(context, zip);
@@ -332,6 +332,148 @@ test("仅导入人物设定图时跳过主参考和独立视图", (t) => {
     const files = JSON.parse(entries.get("projects.json").toString("utf8")).projects[0].files;
     assert.equal(files.length, 1);
     validate(context, zip);
+});
+
+function fiveViewScene(context, images, name = "修伞铺", id = "S01") {
+    const views = Object.fromEntries(["front", "back", "left", "right", "top"].map((view) => [view, `Empty ${name}, ${view} view.`]));
+    const scene = { id, name, image: { prompt: views.front, views }, lighting: [{ state: "日光", prompt: views.front, views }] };
+    mkdirSync(images, { recursive: true });
+    for (const view of Object.keys(views)) writeFileSync(resolve(images, `${name}-${view}.png`), png);
+    return scene;
+}
+
+test("五个独立场景视角全部嵌入并连接对应关键帧，不要求伪造sheet文件", (t) => {
+    const context = fixture(t);
+    const images = resolve(context.root, "images");
+    context.inputs.art.scenes = [fiveViewScene(context, images)];
+    context.inputs.script.episodes[0].scenes[0].lighting = "日光";
+    const exported = context.exportZip(undefined, false, [], { images });
+    const views = ["正面全景", "背面全景", "左面全景", "右面全景", "空间俯视图"].map((view) => nodeNamed(exported.project, `场景 · 修伞铺 · ${view}`));
+    const files = exported.manifest.projects[0].files;
+    assert.equal(files.length, 5);
+    for (const node of views) {
+        assert.equal(node.metadata.status, "success");
+        assert.deepEqual(exported.entries.get(files.find((f) => f.storageKey === node.metadata.storageKey).path), png);
+        assert.equal(node.width / node.height, 1); // fixture图片为1:1，导入保持实际比例。
+    }
+    for (const title of ["E01-01 · 关键帧 1", "E01-01 · 关键帧 2"]) {
+        const frame = nodeNamed(exported.project, title);
+        for (const node of views) {
+            assert.ok(incoming(exported.project, frame).some((ref) => ref.id === node.id));
+            assert.ok(frame.metadata.composerContent.includes(`@[node:${node.id}]`));
+        }
+    }
+    const index = JSON.parse(exported.entries.get("source/scene-assets.json"));
+    assert.equal(index.views.length, 5);
+    assert.ok(index.views.every((view) => Object.keys(view).length <= 5));
+    validate(context, exported.zip);
+});
+
+test("多光照和多场景视角按sceneId与光照对应，通用视角不冒充其他光照", (t) => {
+    const context = fixture(t);
+    const images = resolve(context.root, "images");
+    const first = fiveViewScene(context, images);
+    const second = fiveViewScene(context, images, "修伞铺外巷", "S02");
+    const nightViews = Object.fromEntries(Object.entries(first.image.views).map(([key, value]) => [key, `Night: ${value}`]));
+    first.lighting.push({ state: "夜灯", prompt: nightViews.front, views: nightViews });
+    const nightFolder = resolve(images, "夜间");
+    mkdirSync(nightFolder);
+    for (const view of Object.keys(nightViews)) writeFileSync(resolve(nightFolder, `S01-02-夜灯-${view}.png`), png);
+    context.inputs.art.scenes = [second, first]; // 不以数组位置绑定。
+    context.inputs.script.episodes[0].scenes[0].lighting = "日光";
+    context.inputs.script.episodes[0].scenes.push({ sceneId: "S01", lighting: "夜灯", flow: [] }, { sceneId: "S02", lighting: "日光", flow: [] });
+    for (const [id, sceneIndex] of [["E01-02", 2], ["E01-03", 3]]) context.inputs.storyboard.episodes[0].segments.push({ ...structuredClone(context.segment), id, sceneIndex });
+    const exported = context.exportZip(undefined, false, [], { images });
+    const index = JSON.parse(exported.entries.get("source/scene-assets.json"));
+    assert.equal(index.views.length, 15);
+    for (const [sid, sceneId, lighting] of [["E01-01", "S01", "日光"], ["E01-02", "S01", "夜灯"], ["E01-03", "S02", "日光"]]) {
+        const refs = incoming(exported.project, nodeNamed(exported.project, `${sid} · 关键帧 1`));
+        const actual = index.views.filter((view) => refs.some((node) => node.id === view.nodeId));
+        assert.equal(actual.length, 5);
+        assert.ok(actual.every((view) => view.sceneId === sceneId && view.lighting === lighting));
+    }
+    validate(context, exported.zip);
+});
+
+test("缺少的场景视角明确待生成，关键帧不引用空图片", (t) => {
+    const context = fixture(t);
+    const images = resolve(context.root, "images");
+    const scene = fiveViewScene(context, images);
+    unlinkSync(resolve(images, "修伞铺-right.png"));
+    context.inputs.art.scenes = [scene];
+    context.inputs.script.episodes[0].scenes[0].lighting = "日光";
+    const exported = context.exportZip(undefined, false, [], { images });
+    const missing = nodeNamed(exported.project, "场景 · 修伞铺 · 右面全景");
+    assert.equal(missing.metadata.status, "idle");
+    assert.ok(!missing.metadata.storageKey);
+    const frame = nodeNamed(exported.project, "E01-01 · 关键帧 1");
+    assert.ok(!incoming(exported.project, frame).some((node) => node.id === missing.id));
+    assert.ok(!frame.metadata.composerContent.includes(`@[node:${missing.id}]`));
+    validate(context, exported.zip);
+});
+
+test("编号和中文方向文件可递归匹配，未声明光照的旧素材也能导入五个方向", (t) => {
+    const context = fixture(t);
+    const images = resolve(context.root, "images", "场景原图");
+    mkdirSync(images, { recursive: true });
+    for (const direction of ["正面", "背面", "左面", "右面", "俯视图"]) writeFileSync(resolve(images, `S01-${direction}.png`), png);
+    writeFileSync(resolve(images, "不相关场景-front.png"), png);
+    const exported = context.exportZip(undefined, false, [], { images: resolve(context.root, "images") });
+    const index = JSON.parse(exported.entries.get("source/scene-assets.json"));
+    assert.equal(index.views.length, 5);
+    assert.ok(index.views.every((view) => view.lighting === null));
+    assert.equal(exported.manifest.projects[0].files.length, 5);
+    const frame = nodeNamed(exported.project, "E01-01 · 关键帧 1");
+    assert.ok(frame.metadata.composerContent.includes("俯视图仅提供空间布局"));
+    assert.equal(incoming(exported.project, frame).filter((node) => node.title.startsWith("场景 ·")).length, 5);
+    validate(context, exported.zip);
+});
+
+test("第二个光照缺图时不连接首个光照现成五图，也不把空方向当作参考", (t) => {
+    const context = fixture(t);
+    const images = resolve(context.root, "images");
+    const scene = fiveViewScene(context, images);
+    const views = Object.fromEntries(Object.entries(scene.image.views).map(([key, value]) => [key, `Night: ${value}`]));
+    scene.lighting.push({ state: "夜灯", views });
+    context.inputs.art.scenes = [scene];
+    context.inputs.script.episodes[0].scenes[0].lighting = "夜灯";
+    const exported = context.exportZip(undefined, false, [], { images });
+    const refs = incoming(exported.project, nodeNamed(exported.project, "E01-01 · 关键帧 1"));
+    assert.equal(refs.filter((node) => node.title.startsWith("场景 ·")).length, 0);
+    const missing = exported.project.nodes.filter((node) => node.title.startsWith("场景 · 修伞铺 · 夜灯 ·"));
+    assert.equal(missing.length, 5);
+    assert.ok(missing.every((node) => node.metadata.status === "idle"));
+    validate(context, exported.zip);
+});
+
+test("同一方向有多个图片版本时停止，不静默选择目录顺序", (t) => {
+    const context = fixture(t);
+    const images = resolve(context.root, "images");
+    context.inputs.art.scenes = [fiveViewScene(context, images)];
+    mkdirSync(resolve(images, "another"));
+    writeFileSync(resolve(images, "another", "修伞铺-front.png"), png);
+    context.inputs.script.episodes[0].scenes[0].lighting = "日光";
+    for (const [name, data] of Object.entries(context.inputs)) writeFileSync(resolve(context.root, `${name}.json`), JSON.stringify(data));
+    const r = context.run("export", ...Object.keys(context.inputs).flatMap((name) => [`--${name}`, resolve(context.root, `${name}.json`)]), "--images", images, "--out", resolve(context.root, "duplicate.zip"));
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /多份|重复|多个/);
+});
+
+test("校验可发现视角节点、嵌入文件、场景绑定或参考连线遗漏", (t) => {
+    const context = fixture(t);
+    const images = resolve(context.root, "images");
+    context.inputs.art.scenes = [fiveViewScene(context, images)];
+    context.inputs.script.episodes[0].scenes[0].lighting = "日光";
+    const exported = context.exportZip(undefined, false, [], { images });
+    for (const mutate of [
+        (project) => { project.nodes = project.nodes.filter((node) => node.title !== "场景 · 修伞铺 · 左面全景"); },
+        (project, entries) => { const node = nodeNamed(project, "场景 · 修伞铺 · 右面全景"); const file = exported.manifest.projects[0].files.find((file) => file.storageKey === node.metadata.storageKey); entries.delete(file.path); },
+        (project) => { const frame = nodeNamed(project, "E01-01 · 关键帧 1"), view = nodeNamed(project, "场景 · 修伞铺 · 空间俯视图"); project.connections = project.connections.filter((edge) => !(edge.fromNodeId === view.id && edge.toNodeId === frame.id)); frame.metadata.composerContent = frame.metadata.composerContent.split("\n").filter((line) => !line.includes(`@[node:${view.id}]`)).join("\n"); },
+        (_project, entries) => { const index = JSON.parse(entries.get("source/scene-assets.json")); index.views[0].sceneId = "S99"; entries.set("source/scene-assets.json", Buffer.from(JSON.stringify(index))); },
+    ]) {
+        const zip = rewriteZip(context, exported, mutate);
+        assert.notEqual(context.run("validate", "--zip", zip).status, 0);
+    }
 });
 
 test("普通纯文字宫格原文逐字保留，不混入资产参考，支持部分段交付", (t) => {

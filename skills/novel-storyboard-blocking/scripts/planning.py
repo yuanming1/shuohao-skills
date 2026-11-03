@@ -1,6 +1,8 @@
 """独立站位宫格扩展的源数据交接；仅检查材料齐备，不证明连续性。"""
 import re
 
+from dispatch import check_characters, read_dispatch
+
 
 def make_planning(segment):
     sid = segment['id']
@@ -29,10 +31,15 @@ def make_planning(segment):
                 missing.append(f'{shot} cut.note 缺少非空的 {"、".join(absent)} 说明；标签齐全也仍需语义复核')
         shots.append({'shot': shot, 'view': view, 'continuity': note,
                       'action': required(cut.get('shot'), f'{shot} shot 视频动作正文')})
-    return {'opening': opening, 'shots': shots}, missing
+    bindings, _, problems = read_dispatch(opening, [shot['shot'] for shot in shots])
+    missing.extend(problems)
+    missing.extend(check_characters(segment, bindings))
+    return {'opening': opening, 'shots': shots}, list(dict.fromkeys(missing))
 
 
 def prompt_values(planning):
+    bindings, routes, _ = read_dispatch(planning['opening'])
+    standins = '\n'.join(f'{color}人偶 = {identity} {name}' for identity, name, color in bindings)
     descriptions = []
     for shot in planning['shots']:
         view = shot['view']
@@ -43,4 +50,5 @@ def prompt_values(planning):
             f"Eyeline: {view['eyeline']}\n"
             f"Continuity plan (start / action / end / transition): {shot['continuity']}\n"
             f"Video action, for path annotations only, not the still-panel state: {shot['action']}")
-    return {'opening': planning['opening'], 'spatial_shots': '\n\n'.join(descriptions)}
+    return {'opening': planning['opening'], 'spatial_shots': '\n\n'.join(descriptions),
+            'standins': standins or 'No people appear in this segment.', 'routes': routes}

@@ -4,6 +4,7 @@ import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { loadPreviz, keyframePrompt, spatialSummary, spatialCut, storyboardSegments, validateHandoff, gridComposer } from "./previz-handoff.mjs";
 import { boardAspect, characterBindings, SHOT_SIZES as CURRENT_SIZES, CAMERA as CURRENT_CAMERA } from "./input-contract.mjs";
+import { SCENE_VIEWS, sceneViewFamilies, sceneViewTitle, selectSceneViews } from "./scene-views.mjs";
 
 const SHOT_SIZES = { wide: "全景", medium: "中景", close: "特写", extreme_close: "大特写" };
 const CAMERA = { "Static Shot": "固定镜头", "Tracking Shot": "跟拍", "Push In": "缓慢推镜", "Pull Out": "缓慢拉镜", "Pan Left": "左摇镜头", "Pan Right": "右摇镜头", "Tilt Up": "上摇镜头", "Tilt Down": "下摇镜头", "Handheld": "手持跟拍" };
@@ -60,7 +61,8 @@ function exportCanvas(args) {
     writeFileSync(out, writeStoredZip(packageData.entries));
     console.log(`已导出：${out}`);
     console.log(`项目：${title}；关键帧组合节点 ${packageData.summary.keyframes} 个；H3 视频组合节点 ${packageData.summary.segments} 个；豆包 Seedance 视频组合节点 ${packageData.summary.segments} 个；嵌入参考图 ${packageData.summary.embeddedImages} 张。`);
-    console.log(`参考图片：角色 ${packageData.summary.characterImages} 张；场景光照 ${packageData.summary.sceneLightingImages} 张；场景与道具设定 ${packageData.summary.sheetImages} 张；预演 ${packageData.summary.previzImages} 张。`);
+    console.log(`参考图片：角色 ${packageData.summary.characterImages} 张；场景独立视角 ${packageData.summary.sceneViewImages} 张；场景光照 ${packageData.summary.sceneLightingImages} 张；场景与道具设定 ${packageData.summary.sheetImages} 张；预演 ${packageData.summary.previzImages} 张。`);
+    for (const message of packageData.summary.sceneViews) console.log(message);
     console.log("选定关键帧结果后，连接到视频组合节点并按镜号依次插入 @ 引用；修改参考图后在组合节点再次开始生成。");
     console.log(`站位与拍摄说明 ${packageData.summary.segments} 段；预演宫格 ${previz.size} 段。`);
     if (args.previz && previz.size < packageData.summary.segments) console.log(`未提供预演宫格的段落使用 storyboard 中已有的空间与拍摄信息。`);
@@ -117,6 +119,8 @@ function buildCanvas({ storyboard, script, art, cast, outline, sourcePaths, imag
     };
 
     const sceneReference = new Map();
+    const sceneViewIndex = [];
+    const sceneViewMessages = [];
     const propReference = new Map();
     const assetTop = 200;
     let assetIndex = 0;
@@ -129,7 +133,31 @@ function buildCanvas({ storyboard, script, art, cast, outline, sourcePaths, imag
 
     for (const scene of art.scenes) {
         const lightingNodes = new Map();
+        const families = sceneViewFamilies(scene, imageFiles);
+        for (const family of families) {
+            const viewNodes = family.views.map((view) => {
+                const position = assetPosition();
+                const node = makeImageNode({ title: view.title, x: position.x, y: position.y, prompt: view.prompt, imageFile: view.imageFile });
+                if (view.imageFile) {
+                    const scale = Math.min(node.width / node.metadata.naturalWidth, node.height / node.metadata.naturalHeight);
+                    node.width = node.metadata.naturalWidth * scale;
+                    node.height = node.metadata.naturalHeight * scale;
+                }
+                sceneViewIndex.push({ sceneId: scene.id, lighting: family.lighting, view: view.key, nodeId: node.id, storageKey: node.metadata.storageKey || null });
+                return node;
+            });
+            const position = assetPosition();
+            const content = [
+                `${scene.name}${family.lighting ? ` · ${family.lighting}` : ""}：独立场景视角。`,
+                ...family.views.map((view, index) => `${SCENE_VIEWS.find((item) => item.key === view.key).label}：${viewNodes[index].metadata.storageKey ? "已嵌入" : "缺图，待生成"}`),
+                "各方向图片共同锁定环境边界；俯视图只提供布局，方向字样和观察箭头不进入成片。关键帧的实际机位与切点仍以最终分镜为准。",
+            ].join("\n");
+            const notes = addNode({ type: "text", title: `场景视角说明 · ${scene.name}${family.lighting ? ` · ${family.lighting}` : ""}`, position, width: 330, height: 240, metadata: { content, status: "success", fontSize: 14 } });
+            for (const node of viewNodes) addConnection(node.id, notes.id);
+            sceneViewMessages.push(`场景视角：${scene.name}${family.lighting ? ` · ${family.lighting}` : ""}；已嵌入 ${viewNodes.filter((node) => node.metadata.storageKey).length}/${viewNodes.length}；${family.views.filter((view) => !view.imageFile).map((view) => `${view.title} 缺图`).join("、") || "本组齐全"}。`);
+        }
         (scene.lighting || []).forEach((lighting, index) => {
+            if (families.some((family) => family.lighting === lighting.state)) return;
             const position = assetPosition();
             const lightingImage = findImage(
                 imageFiles,
@@ -140,10 +168,18 @@ function buildCanvas({ storyboard, script, art, cast, outline, sourcePaths, imag
             const node = makeImageNode({ title: `场景 · ${scene.name} · ${lighting.state}`, x: position.x, y: position.y, prompt: lighting.prompt || scene.image?.prompt || "", imageFile: lightingImage });
             lightingNodes.set(lighting.state, { id: node.id, hasImage: Boolean(lightingImage) });
         });
-        const sheetPosition = assetPosition();
-        const sheet = makeImageNode({ title: `场景 · ${scene.name} · 多视角设定图`, x: sheetPosition.x, y: sheetPosition.y, prompt: scene.image?.sheet || scene.image?.prompt || "", imageFile: findImage(imageFiles, `${slug(scene.name)}-sheet`) });
-        for (const lightingNode of lightingNodes.values()) addConnection(sheet.id, lightingNode.id);
-        sceneReference.set(scene.id, { lightingNodes, sheetId: sheet.id });
+        const sheetImage = findImage(imageFiles, `${slug(scene.name)}-sheet`);
+        let sheet = null;
+        if (sheetImage || !families.length || lightingNodes.size) {
+            const sheetPosition = assetPosition();
+            sheet = makeImageNode({ title: `场景 · ${scene.name} · 多视角设定图`, x: sheetPosition.x, y: sheetPosition.y, prompt: scene.image?.sheet || scene.image?.prompt || "", imageFile: sheetImage });
+            for (const lightingNode of lightingNodes.values()) addConnection(sheet.id, lightingNode.id);
+            if (families.length && !lightingNodes.size) {
+                const view = sceneViewIndex.find((record) => record.sceneId === scene.id);
+                addConnection(sheet.id, view.nodeId);
+            }
+        }
+        sceneReference.set(scene.id, { lightingNodes, sheetId: sheet?.id });
     }
 
     for (const prop of art.props || []) {
@@ -291,8 +327,12 @@ function buildCanvas({ storyboard, script, art, cast, outline, sourcePaths, imag
                 const referenceIds = new Set();
                 const sceneAsset = sceneReference.get(scriptScene.sceneId);
                 const sceneLighting = sceneAsset?.lightingNodes.get(scriptScene.lighting);
-                const sceneNodeId = sceneLighting?.hasImage ? sceneLighting.id : sceneAsset?.sheetId;
-                if (sceneNodeId) referenceIds.add(sceneNodeId);
+                const views = selectSceneViews(sceneViewIndex, scriptScene.sceneId, scriptScene.lighting);
+                if (views.length) for (const view of views) referenceIds.add(view.nodeId);
+                else {
+                    const sceneNodeId = sceneLighting?.hasImage ? sceneLighting.id : sceneAsset?.sheetId;
+                    if (sceneNodeId) referenceIds.add(sceneNodeId);
+                }
                 if (paletteNodeId) referenceIds.add(paletteNodeId);
                 const characterIds = new Set(Array.isArray(cut.characters) ? cut.characters : (scriptScene.characters || []));
                 for (const characterId of characterIds) {
@@ -343,7 +383,8 @@ function buildCanvas({ storyboard, script, art, cast, outline, sourcePaths, imag
         { name: `source/${basename(sourcePaths.art)}`, data: Buffer.from(JSON.stringify(art, null, 2), "utf8") },
         { name: `source/${basename(sourcePaths.cast)}`, data: Buffer.from(JSON.stringify(cast, null, 2), "utf8") },
         ...(outline ? [{ name: `source/${basename(sourcePaths.outline)}`, data: Buffer.from(JSON.stringify(outline, null, 2), "utf8") }] : []),
-        { name: "source/canvas-input.json", data: Buffer.from(JSON.stringify({ version: 4, storyboard: `source/${basename(sourcePaths.storyboard)}`, previz: [...previz.keys()], script: `source/${basename(sourcePaths.script)}`, constraints }), "utf8") },
+        { name: "source/canvas-input.json", data: Buffer.from(JSON.stringify({ version: 5, storyboard: `source/${basename(sourcePaths.storyboard)}`, previz: [...previz.keys()], script: `source/${basename(sourcePaths.script)}`, constraints }), "utf8") },
+        { name: "source/scene-assets.json", data: Buffer.from(JSON.stringify({ art: `source/${basename(sourcePaths.art)}`, views: sceneViewIndex }), "utf8") },
         ...[...previz].flatMap(([sid, handoff]) => [
             { name: `source/previz/${sid}/grid-input.json`, data: Buffer.from(JSON.stringify(handoff.data, null, 2), "utf8") },
             { name: `source/previz/${sid}/grid-prompt.txt`, data: Buffer.from(handoff.prompt, "utf8") },
@@ -360,7 +401,9 @@ function buildCanvas({ storyboard, script, art, cast, outline, sourcePaths, imag
             keyframes,
             embeddedImages: embeddedFiles.length,
             characterImages: countStored((node) => node.title.startsWith("角色设定图 ·") || node.title.startsWith("角色锚点 ·") || node.title.startsWith("角色视图 ·")),
-            sceneLightingImages: countStored((node) => node.title.startsWith("场景 ·") && !node.title.endsWith("多视角设定图")),
+            sceneViewImages: sceneViewIndex.filter((record) => record.storageKey).length,
+            sceneViews: sceneViewMessages,
+            sceneLightingImages: countStored((node) => node.title.startsWith("场景 ·") && !node.title.endsWith("多视角设定图") && !sceneViewIndex.some((record) => record.nodeId === node.id)),
             sheetImages: countStored((node) => (node.title.startsWith("场景 ·") || node.title.startsWith("道具 ·")) && node.title.endsWith("多视角设定图")),
             previzImages: countStored((node) => node.title.endsWith("预演参考图")),
         },
@@ -369,7 +412,10 @@ function buildCanvas({ storyboard, script, art, cast, outline, sourcePaths, imag
 
 function keyframeComposer(prompt, references) {
     if (!references.length) return prompt;
-    return `${prompt}\n\n【参考图片对应】\n${references.map((node) => `${node.title}：@[node:${node.id}]`).join("\n")}\n场景参考负责环境，色卡负责色调与材质，角色参考负责身份与服装，道具参考负责物件外观；人物站位、构图和切点状态以本镜描述为准。`;
+    const planRole = references.some((node) => node.title.startsWith("场景 ·") && node.title.endsWith("空间俯视图"))
+        ? "\n场景各视角共同锁定同一环境；俯视图仅提供空间布局，其方向文字、箭头与平面图排版不进入电影画面。"
+        : "";
+    return `${prompt}\n\n【参考图片对应】\n${references.map((node) => `${node.title}：@[node:${node.id}]`).join("\n")}\n场景参考负责环境，色卡负责色调与材质，角色参考负责身份与服装，道具参考负责物件外观；人物站位、构图和切点状态以本镜描述为准。${planRole}`;
 }
 
 function keyframeInstructions(segment) {
@@ -553,11 +599,12 @@ function validateCanvas(args) {
     if (missing.length) fail(`ZIP 缺少 ${missing.length} 个嵌入图片。`);
     const input = entries.has("source/canvas-input.json") ? JSON.parse(entries.get("source/canvas-input.json").toString("utf8")) : null;
     if (input) {
-        if (![1, 2, 3, 4].includes(input.version) || !entries.has(input.storyboard) || !Array.isArray(input.previz)) fail("ZIP 的源数据索引无效。");
+        if (![1, 2, 3, 4, 5].includes(input.version) || !entries.has(input.storyboard) || !Array.isArray(input.previz)) fail("ZIP 的源数据索引无效。");
         if (input.version >= 3 && (!entries.has(input.script) || !Array.isArray(input.constraints) || input.constraints.some((line) => typeof line !== "string"))) fail("ZIP 的剧本或视频约束索引无效。");
         const storyboard = args.storyboard ? readJson(requiredPath(args, "storyboard")) : JSON.parse(entries.get(input.storyboard).toString("utf8"));
         const script = input.version >= 3 ? JSON.parse(entries.get(input.script).toString("utf8")) : null;
         validateSpatialImport(project, entries, storyboard, input.previz, files, input.version, script, input.constraints);
+        if (input.version >= 5) validateSceneViews(project, entries, storyboard, script, files);
     } else if (args.storyboard) {
         // 旧导出包没有空间交接索引，继续按原来的 cut.frame 规则验证。
         const storyboard = readJson(requiredPath(args, "storyboard"));
@@ -566,6 +613,44 @@ function validateCanvas(args) {
         if (mismatch) fail(`关键帧与 storyboard 原文不一致：${mismatch.title}`);
     }
     console.log(`通过：关键帧节点 ${keyframes.length} 个；H3 视频 ${h3.length} 条；豆包 Seedance 视频 ${seedance.length} 条；嵌入文件 ${files.length} 个。`);
+}
+
+function validateSceneViews(project, entries, storyboard, script, files) {
+    if (!entries.has("source/scene-assets.json")) fail("ZIP 缺少场景视角索引。");
+    const index = JSON.parse(entries.get("source/scene-assets.json").toString("utf8"));
+    if (!entries.has(index.art) || !Array.isArray(index.views)) fail("场景视角索引或美术源数据无效。");
+    const art = JSON.parse(entries.get(index.art).toString("utf8"));
+    const seen = new Set();
+    for (const record of index.views) {
+        const scene = art.scenes.find((scene) => scene.id === record.sceneId);
+        if (!scene || !SCENE_VIEWS.some((view) => view.key === record.view)) fail("场景视角映射引用了未知场景或方向。");
+        const key = JSON.stringify([record.sceneId, record.lighting, record.view]);
+        if (seen.has(key)) fail("场景视角索引重复。");
+        seen.add(key);
+        const matches = project.nodes.filter((node) => node.id === record.nodeId);
+        const node = matches[0];
+        if (matches.length !== 1 || node.type !== "image" || node.title !== sceneViewTitle(scene, record.lighting, scene.lighting?.[0]?.state, record.view)) fail("场景视角节点丢失、重复或方向不正确。");
+        if ((node.metadata?.storageKey || null) !== record.storageKey) fail(`${node.title} 的嵌入图片与索引不一致。`);
+        if (record.storageKey) {
+            const match = files.filter((file) => file.storageKey === record.storageKey);
+            if (match.length !== 1 || !entries.has(match[0].path) || entries.get(match[0].path).length !== match[0].bytes || node.metadata?.status !== "success") fail(`${node.title} 的嵌入图片丢失或不完整。`);
+        }
+    }
+    for (const scene of art.scenes) for (const family of sceneViewFamilies(scene, [])) for (const view of family.views) {
+        const record = index.views.find((record) => record.sceneId === scene.id && record.lighting === family.lighting && record.view === view.key);
+        const node = record && project.nodes.find((node) => node.id === record.nodeId);
+        if (!node || node.metadata?.prompt !== view.prompt) fail(`${view.title} 缺少场景视角或与美术提示词不一致。`);
+    }
+    const allViewIds = new Set(index.views.map((record) => record.nodeId));
+    for (const episode of storyboard.episodes) for (const segment of episode.segments) {
+        const scene = script.episodes.find((item) => item.ep === episode.ep)?.scenes?.[segment.sceneIndex - 1];
+        const expected = selectSceneViews(index.views, scene.sceneId, scene.lighting).map((record) => record.nodeId).sort();
+        for (let cut = 0; cut < segment.cuts.length; cut += 1) {
+            const node = project.nodes.find((node) => node.title === `${segment.id} · 关键帧 ${cut + 1}`);
+            const actual = project.connections.filter((edge) => edge.toNodeId === node.id && allViewIds.has(edge.fromNodeId)).map((edge) => edge.fromNodeId).sort();
+            if (JSON.stringify(actual) !== JSON.stringify(expected)) fail(`${node.title} 的场景视角引用缺失、串场或光照不匹配。`);
+        }
+    }
 }
 
 function validateSpatialImport(project, entries, storyboard, previzIds, files, version, script, constraints) {

@@ -104,14 +104,15 @@ eq(stats.totals.segments, 10, '样例十段');
 eq(stats.totals.cuts, 34, '样例三十四个分镜');
 eq(stats.totals.seconds, 119, '总秒数');
 eq(stats.totals.targetSeconds, 120, '目标秒数');
-ok(stats.totals.avgCutSeconds >= 3 && stats.totals.avgCutSeconds <= 4, '平均一切 3 秒左右——短剧节奏');
+ok(stats.totals.avgCutSeconds >= 3 && stats.totals.avgCutSeconds <= 4, '现有样例平均切长在 3–4 秒之间');
 eq(stats.batches.length, 2, '两个生成批次（S02 浓雾清晨 / S01 晨雾）');
 ok(stats.batches[0].segments.length + stats.batches[1].segments.length === 10, '批次覆盖全部段');
 eq(stats.dialogue.length, 19, '第 1 集 19 句台词全部对到段和切');
 ok(stats.dialogue.every((d) => /^E01-\d{2}$/.test(d.segment) && d.cut >= 1), '对齐单带段号和切序');
 eq(stats.episodes[0].withLines, 10, '台词段计数——本样例每段都带台词，纯画面收在分镜级');
 eq(paramsOf({}).maxSegmentSeconds, DEFAULT_PARAMS.maxSegmentSeconds, '默认段上限 15 秒');
-eq(paramsOf({}).maxCutSeconds, 5, '默认分镜上限 5 秒');
+eq(paramsOf({}).minCutSeconds, undefined, '默认不设置分镜下限');
+eq(paramsOf({}).maxCutSeconds, undefined, '默认不设置独立分镜上限');
 eq(paramsOf({ params: { maxCutSeconds: 4 } }).maxCutSeconds, 4, '分镜上限可调');
 
 /* ---------------- 质量门：全绿基线 ---------------- */
@@ -163,22 +164,49 @@ eq(gateReport(FIXTURE, CTX).length, 18, '十八道门');
   ok(g.detail.includes('E01-01'), '点名到段');
 }
 // cut-length
-{
+for (const seconds of [0.5, 1, 6, 15]) {
   const doc = clone(FIXTURE);
-  doc.episodes[0].segments[0].cuts[0].seconds = 1;
-  ok(!gate(doc, 'cut-length').ok, '分镜短于 2 秒被拦');
+  doc.episodes[0].segments[0].cuts[0].seconds = seconds;
+  ok(gate(doc, 'cut-length').ok, `默认允许 ${seconds} 秒分镜`);
+}
+for (const seconds of [0, -0.5, NaN, Infinity, -Infinity, '0.5', undefined]) {
+  const doc = clone(FIXTURE);
+  doc.episodes[0].segments[0].cuts[0].seconds = seconds;
+  const g = gate(doc, 'cut-length');
+  ok(!g.ok, `无效镜长 ${String(seconds)} 被拦`);
+  ok(g.detail.includes('E01-01#1'), '无效镜长点名到切');
 }
 {
   const doc = clone(FIXTURE);
-  doc.episodes[0].segments[0].cuts[0].seconds = 6;
-  const g = gate(doc, 'cut-length');
-  ok(!g.ok, '分镜超 5 秒被拦——3 秒节奏是硬门');
-  ok(g.detail.includes('E01-01#1'), '点名到切');
+  doc.episodes[0].segments[0].cuts[0].seconds = 16;
+  ok(!gate(doc, 'cut-length').ok, '单镜仍不能超过单段上限');
+  doc.params = { maxSegmentSeconds: 30 };
+  ok(gate(doc, 'cut-length').ok, '单镜上限随项目单段上限调整');
+}
+{
+  const doc = clone(FIXTURE);
+  doc.params = { minCutSeconds: 2 };
+  doc.episodes[0].segments[0].cuts[0].seconds = 0.5;
+  ok(!gate(doc, 'cut-length').ok, '项目显式设置的下限仍然生效');
 }
 {
   const doc = clone(FIXTURE);
   doc.params = { maxCutSeconds: 3 };
   ok(!gate(doc, 'cut-length').ok, '上限收紧到 3 秒后原样例不再达标');
+}
+{
+  const doc = clone(FIXTURE);
+  const seg = doc.episodes[0].segments[0];
+  const previous = clone(seg.cuts);
+  const previousStarts = cutStarts(previous);
+  [0.5, 1, 6, 7.5].forEach((seconds, index) => { seg.cuts[index].seconds = seconds; });
+  const starts = cutStarts(seg.cuts);
+  seg.h3Prompt = seg.h3Prompt.replace(h3AlignmentLine(previous, doc.promptLang), h3AlignmentLine(seg.cuts, doc.promptLang));
+  for (let index = 1; index < starts.length; index++) {
+    seg.h3Prompt = seg.h3Prompt.replace(h3CutTime(previousStarts[index]), h3CutTime(starts[index]));
+  }
+  ok(gateReport(doc, CTX).every((g) => g.ok), '短切与长镜头混排，同步 H3 后仍通过完整质量门');
+  eq(starts.join(','), '0,0.5,1.5,7.5', '短切累计切点与生成时刻一致');
 }
 // dialogue-fit
 {
@@ -926,8 +954,8 @@ ok(html.includes('老周'), 'html 里 ID 换成名字');
 // 质量门面板是报告的一部分：英文界面下门标签也要翻译（阈值由门自己算，原样保留）
 {
   const gateEn = renderHtml(FIXTURE, { ...CTX, lang: 'en' });
-  ok(gateEn.includes('Every cut 2–5s'), 'EN 报告的质量门标签翻译且阈值原样保留');
-  ok(!gateEn.includes('每个分镜 2–5 秒'), 'EN 报告不再出现中文门标签');
+  ok(gateEn.includes('Every cut has a positive finite duration'), 'EN 报告翻译灵活镜长的质量门标签');
+  ok(!gateEn.includes('每个分镜时长为正有限秒数'), 'EN 报告不再出现中文门标签');
   ok(gateEn.includes('no recipe card library mounted'), 'EN 报告的跳过说明也翻译');
 }
 

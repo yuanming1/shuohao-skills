@@ -579,9 +579,9 @@ ok(/\.upper\{[^}]*grid-template-columns:minmax\(0,1fr\) 500px/.test(css), '主�
 ok(/\.prompts\{[^}]*grid-template-columns:1fr 1fr/.test(css), '提示词分左右两组');
 ok(css.includes('.char{display:none}'), '默认只显示选中的角色');
 ok(/\.main\{[^}]*max-width:1500px/.test(css), '主区最大宽度 1500px');
-// 缩略图用精灵图裁设定图左栏——设定图 16:9、左栏约 34%，放大 1/0.34≈294% 左上对齐
-ok(/\.rost-thumb\{[^}]*background-size:294% auto/.test(css), '缩略图按 294% 裁左栏');
-ok(/\.rost-thumb\{[^}]*no-repeat left top/.test(css), '缩略图左上对齐');
+// 缩略图截取上部 1/3 高度，并将左侧正面特写的中心对齐到缩略图中心
+ok(/\.rost-thumb\{[^}]*background-size:auto 300%/.test(css), '缩略图截取上部完整高度');
+ok(/\.rost-thumb\{[^}]*no-repeat 19\.2308% top/.test(css), '缩略图对准上部正面特写');
 ok(!/\.rost-thumb img/.test(css), '缩略图不再用 img 拉伸');
 // 屏幕上一次一个，打印时必须全展开，否则打出来只有一个角色
 ok(/@media print\{[\s\S]*\.char\{display:block!important/.test(css), '打印时展开全部角色');
@@ -670,31 +670,40 @@ for (const l of ['zh', 'en', 'fr']) {
   );
 }
 
-/* ---------------- 角色设定图（左半身像 + 右三视图，一张） ---------------- */
+/* ---------------- 角色设定图（上部面部双视图 + 下部身体三视图） ---------------- */
 
 ok(CAST.every((c) => c.image.sheet && c.image.sheet.trim()), '样例每个角色都有设定图提示词');
-// 左右分栏和比例必须写死在提示词里，否则模型会自由发挥
-ok(CAST.every((c) => /LEFT ZONE/.test(c.image.sheet)), '提示词划出左栏');
-
-ok(CAST.every((c) => /about 34% of the canvas width/.test(c.image.sheet)), '左栏比例写死 34%');
-// 16:9 和三区版面
 ok(CAST.every((c) => /16:9/.test(c.image.sheet)), '画布写死 16:9');
-ok(CAST.every((c) => /RIGHT-TOP ZONE/.test(c.image.sheet)), '右上是三视图区');
-ok(CAST.every((c) => /RIGHT-BOTTOM ZONE/.test(c.image.sheet)), '右下是细节区');
-ok(CAST.every((c) => /thin hairline rules/.test(c.image.sheet)), '三区之间有细线分隔');
-// 比例是这个版面最容易崩的地方——为了塞下细节而压扁人物
-ok(CAST.every((c) => /PROPORTIONS ARE CRITICAL/.test(c.image.sheet)), '强调比例');
+ok(CAST.every((c) => /UPPER ONE-THIRD of the canvas height/.test(c.image.sheet)), '上部固定占画布高度三分之一');
+ok(CAST.every((c) => /LOWER TWO-THIRDS of the canvas height/.test(c.image.sheet)), '下部固定占画布高度三分之二');
 ok(
-  CAST.every((c) => /no stretching, squashing or foreshortening/.test(c.image.sheet)),
+  CAST.every((c) => /exactly two facial close-ups[\s\S]*front view, then strict LEFT 90-degree profile/.test(c.image.sheet)),
+  '上部依次为正面和左侧九十度面部特写',
+);
+ok(
+  CAST.every((c) => /FRONT VIEW WITHOUT THE HEAD; strict LEFT 90-DEGREE VIEW WITHOUT THE HEAD; BACK VIEW WITH THE COMPLETE HEAD/.test(c.image.sheet)),
+  '下部依次为正面无头部、左侧无头部、背面有头部',
+);
+ok(
+  CAST.every((c) => /NO dividing lines, panel borders, visible guide lines, letters, numbers, labels, captions or any other text/.test(c.image.sheet)),
+  '画面禁止分割线、可见基准线及任何文字标注',
+);
+// 对齐基准是几何约束，不能真的画出线条，也不能把无头部身体放大成完整人物高度
+ok(
+  CAST.every((c) => ['FOOT-SOLE LINE:', 'HIP LINE:', 'SHOULDER LINE:'].every((k) => c.image.sheet.includes(k))),
+  '脚底、髋部、肩部逐项规定对齐高度',
+);
+ok(
+  CAST.every((c) => /NECK CUT PLANE AT CHIN-BASE HEIGHT:[\s\S]*matching the underside of the chin/.test(c.image.sheet)),
+  '颈部切断面明确对齐完整人物的下巴底高度',
+);
+ok(
+  CAST.every((c) => /HEIGHT PROPORTIONS:[\s\S]*never enlarge their bodies to reach the back view's crown/.test(c.image.sheet)),
+  '共用身体尺度，省略头部后不补偿性增高',
+);
+ok(
+  CAST.every((c) => /no stretching, squashing or foreshortening/i.test(c.image.sheet)),
   '禁止拉伸压扁人物',
-);
-ok(
-  CAST.every((c) => /the detail studies give way, not the figures/.test(c.image.sheet)),
-  '空间不够时让细节让位，不动人物',
-);
-ok(
-  CAST.every((c) => /continue them in a narrow vertical column down the right-hand edge/.test(c.image.sheet)),
-  '细节放不下可延伸到右侧',
 );
 
 // 同批角色的提示词不许雷同——模型套同一个模板，两个年龄性别接近的角色会出成同一个人（issue #9）
@@ -727,7 +736,7 @@ eq(validateCast(CAST, SOURCE, 'zh').length, 0, '样例四个角色的提示词�
   );
 }
 {
-  // image.sheet 刻意不查：三分区排版规范是大段固定文本，真实角色之间本来就 63% 重合
+  // image.sheet 刻意不查：上下布局与五条基准包含大段共用文本
   const dupSheet = clone();
   dupSheet[1].image.sheet = dupSheet[0].image.sheet;
   ok(
@@ -793,39 +802,39 @@ for (const [k, label] of [
 ]) {
   ok(CAST.every((c) => k.test(c.image.sheet)), `设定图提示词含${label}`);
 }
-// 分区光照：左栏要体积，右侧要平光——合并成一句全局光照就废了
+// 上部面部特写保持体积，下部身体视图保持平光与正交尺度
 ok(
-  CAST.every((c) => /LIGHTING IN THE LEFT ZONE ONLY/.test(c.image.sheet)),
-  '左栏单独打方向光',
+  CAST.every((c) => /LIGHTING IN THE UPPER REGION ONLY/.test(c.image.sheet)),
+  '上部面部特写单独打柔和方向光',
 );
 ok(
-  CAST.every((c) => /LIGHTING IN THE RIGHT ZONES: flat even orthographic/.test(c.image.sheet)),
-  '右侧保持平光正交',
+  CAST.every((c) => /LIGHTING IN THE LOWER REGION: flat even orthographic/.test(c.image.sheet)),
+  '下部保持平光正交',
 );
 ok(
   CAST.every((c) => /ambient occlusion/i.test(c.image.sheet)),
-  '左栏有环境遮蔽',
+  '面部特写有轻微环境遮蔽',
 );
-ok(CAST.every((c) => /bust portrait/i.test(c.image.sheet)), '左栏是半身像');
-// 模型默认会把肩膀裁掉、底边做成圆角渐隐，必须显式禁掉
+ok(CAST.every((c) => /complete crown, hairstyle, ears and chin/.test(c.image.sheet)), '面部特写完整包含头顶与下巴');
 ok(
-  CAST.every((c) => /BOTH SHOULDERS ARE FULLY VISIBLE/.test(c.image.sheet)),
-  '左栏要求肩膀完整',
+  CAST.every((c) => /clean, non-graphic design cut at chin-base height; omit the entire head, not just its facial features/.test(c.image.sheet)),
+  '无头部身体以设计截面收口，不替换成空白脸',
 );
 ok(
-  CAST.every((c) => /do not fade, vignette or round off the bottom edge/.test(c.image.sheet)),
-  '左栏禁止底边圆角渐隐',
+  CAST.every((c) => /nose pointing toward image left/.test(c.image.sheet)),
+  '左侧严格九十度，朝向明确',
 );
-ok(CAST.every((c) => /three FULL-BODY views/i.test(c.image.sheet)), '右上是三视图');
-// 两栏的脸必须画成同一个人，否则一张图里出现两个长相
 ok(
-  CAST.every((c) => /must match the bust portrait/i.test(c.image.sheet)),
-  '三视图的脸要求与半身像一致',
+  CAST.every((c) => /entire body and both feet in each view/.test(c.image.sheet)),
+  '三个身体视图完整保留身体与双脚',
 );
-// 「留空脸」是上一版的做法，已废弃——提示词里不该再出现
 ok(
-  CAST.every((c) => !/left completely blank|NO eyes|NO facial features/i.test(c.image.sheet)),
-  '提示词里没有残留的留空脸要求',
+  CAST.every((c) => /SAME person with matching facial structure, age, features and hairstyle/.test(c.image.sheet)),
+  '正面和侧面特写属于同一个人物设计',
+);
+ok(
+  CAST.every((c) => !/LEFT ZONE|RIGHT-TOP ZONE|RIGHT-BOTTOM ZONE|thin hairline rules|bust portrait/i.test(c.image.sheet)),
+  '提示词没有残留旧版左右构图与分割线要求',
 );
 
 const withSheet = clone();

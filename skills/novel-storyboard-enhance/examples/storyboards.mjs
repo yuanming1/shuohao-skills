@@ -1,4 +1,5 @@
 /** 《雪站回灯》的程序检查材料；沿用既有分镜字段，不定义新 schema。 */
+import { alignmentLine } from '../scripts/recomposition.mjs';
 const baseNote = '起始：人物站位与手部状态保持；动作：完成既定唤灯过程；结束：记录灯纹或受光阶段；接镜：继承最近终态。';
 const reason = '增强依据：按本镜观察任务细化既有反应或灯纹，保留人物、能力及结果。';
 function cut(beat, frame, shot) {
@@ -92,5 +93,56 @@ export function compositionEnhanced() {
     'A static medium view from beside the mentor’s shoulder stays on the same side of the interaction axis. A small part of his shoulder occupies the lower-right foreground without obscuring the apprentice’s face, raised palm or lamp rim. She maintains her already steady palm and attention. The existing amber ring lights progressively around the rim; only after it closes does the core glow and illuminate the nearby stone. Both people stay in place.',
     'Static Shot. The shot starts wide from an oblique camera on the same side of the interaction axis, showing both people, the lit lamp and the existing illuminated stone path extending diagonally toward the gate. The mentor looks along the path while the apprentice keeps her palm in place. Neither moves; the light and hum continue.',
   );
+  return value;
+}
+
+/** 同一既定故事的四个节拍：提醒、稳手回答、唤灯、确认结果。原稿把前两拍挤在一镜。 */
+export function compressedBoard() {
+  const value = board();
+  const cuts = value.episodes[0].segments[0].cuts;
+  cuts[0].beats = [1, 2];
+  cuts[1].beats = [3, 3];
+  cuts[2].beats = [4, 4];
+  return value;
+}
+
+export function promptForCuts(cuts, bodies) {
+  let elapsed = 0;
+  const blocks = bodies.map((body, index) => {
+    const millis = Math.round(elapsed * 1000);
+    const time = `${String(Math.floor(millis / 60000)).padStart(2, '0')}:${String(Math.floor(millis / 1000) % 60).padStart(2, '0')}.${String(millis % 1000).padStart(3, '0')}`;
+    elapsed += cuts[index].seconds;
+    return `[Shot ${index + 1}] ${index ? `At ${time}, ` : ''}<Picture ${index + 1}> ${body}`;
+  });
+  return `${alignmentLine(cuts)}\n\nintegrated_multimodal_description:\n${blocks.join('\n')}\n\noverall_soundscape: Wind outside the sheltered porch; the existing lamp hums as its core lights.\n\nnon_diegetic_music: N/A`;
+}
+
+export const completionBodies = [
+  'Static Shot. The apprentice holds her unsteady right palm above the unlit lamp. The older mentor (S1) says <d>[Chinese] 先稳住。</d> without taking over; she hears him before looking toward him.',
+  'Static Shot. After the reminder, the apprentice looks briefly at the mentor, then returns her gaze to the lamp and steadies the same raised hand herself. Her left hand remains lowered. Only after that visible preparation does the young apprentice (S2) say <d>[Chinese] 我来。</d>. The ring is still dark.',
+  'Static Shot. Her already steady right palm remains above the rim. The existing amber ring lights progressively and closes before the core glows. The mentor does not perform the operation for her.',
+  'Pull Out. The lamp stays lit while the camera reveals the existing illuminated stone path. The mentor looks along it; the apprentice maintains her palm. Neither person walks away or repeats the lighting.',
+];
+
+export function completedBoard() {
+  const value = enhanced();
+  const segment = value.episodes[0].segments[0];
+  const [oldFirst, ring, result] = segment.cuts;
+  const reminder = structuredClone(oldFirst);
+  reminder.beats = [1, 1];
+  reminder.seconds = 2;
+  reminder.eyeline = '学徒先看灯，听到提醒后才看师父';
+  reminder.shot = '固定双人中景，年轻学徒右掌悬在暗着的灯沿上方，尚未稳定。年长师父说出原提醒，没有代替她操作；她听完才将注意转向他。';
+  reminder.note = '起始：悬掌尚未稳定，灯暗；动作：师父提醒，学徒听见后看他；结束：她尚未回答，手仍待稳住；接镜：切到她如何自己完成准备。增强依据：原稿把提醒与回答挤在一起，拆镜给独立承担留下可见过程。';
+  const response = structuredClone(oldFirst);
+  response.beats = [2, 2];
+  response.frame = '中景，岑雪右掌仍悬在暗灯上方，正看向右后方的罗衡，尚未回看灯沿或回答；两人原位。';
+  response.shot = '固定中景，年轻学徒短暂看向师父，随后自己把目光移回灯沿，稳住悬掌，再回答原台词；师父保持原位，没有伸手接管，灯纹仍暗。';
+  response.note = '起始：学徒听过提醒，望向师父，悬掌尚未稳定；动作：回看灯沿并自己稳住手，然后回答；结束：手稳定、灯暗；接镜：下一镜开始唤灯，不重复稳手。增强依据：补足从紧张到自己承担的性格表达，给视线和动作留出四秒，原对白与结果保持。';
+  ring.beats = [3, 3];
+  result.beats = [4, 4];
+  segment.cuts = [reminder, response, ring, result];
+  segment.blocking = '岑雪在门廊石灯左侧，罗衡在右后方，院门在灯前方；开场右掌尚未稳住，灯暗。两人原位置保持，先听提醒再自行稳手回答。';
+  segment.h3Prompt = promptForCuts(segment.cuts, completionBodies);
   return value;
 }

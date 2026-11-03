@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** 只读分镜保护性对比；不判断动作语义，不导入其他技能。 */
+/** 分镜保护性对比与校验后原位更新；不判断动作语义，不导入其他技能。 */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -227,7 +227,7 @@ function fenced(value) {
 export function renderReview(result) {
   const lines = ['# 分镜动作修订对比', '',
     `修改字段：${result.changes.length}；保护性问题：${result.violations.length}。`, '',
-    '本报告只比较数据和可检查的协议内容。动作语义、物理合理性、时长可行性和成片效果仍需逐镜复核。', '',
+    '本报告只比较数据和可检查的协议内容。叙事、情绪、表演和身体动作的跨镜、跨段承接需联合复核；物理合理性、时长可行性和成片效果仍需结合剧本与实际素材判断。', '',
     '## 程序检测门', '',
     '| 编号 | 检测内容 | 结果 |', '|---|---|---|',
     ...gateChecks(result).map((gate) => `| ${gate.id} | ${gate.name} | ${gate.issues.length ? (gate.id === 'G06' ? '待核对' : '未通过') : '通过'} |`), '',
@@ -249,24 +249,60 @@ export function renderReview(result) {
 }
 
 function parseArgs(argv) {
-  if (argv[0] !== 'review') throw new Error('命令格式：review --before 原稿.json --after 修订稿.json [--out motion-review.md]');
+  const command = argv[0];
+  if (!['review', 'apply'].includes(command)) throw new Error('命令格式：apply --file storyboard.json；标准输入提供 {before, after}，或使用 review --before 原稿.json --after 修订稿.json');
   const options = {};
+  const allowed = command === 'apply' ? ['--file', '--out'] : ['--before', '--after', '--out'];
   for (let i = 1; i < argv.length; i += 2) {
     const key = argv[i];
-    if (!['--before', '--after', '--out'].includes(key) || own(options, key)
+    if (!allowed.includes(key) || own(options, key)
       || !argv[i + 1] || argv[i + 1].startsWith('--')) throw new Error(`无效或重复参数：${key}`);
     options[key] = argv[i + 1];
   }
-  if (!options['--before'] || !options['--after']) throw new Error('必须提供 --before 和 --after');
+  if (command === 'apply') {
+    if (!options['--file']) throw new Error('apply 必须提供 --file');
+  } else if (!options['--before'] || !options['--after']) throw new Error('必须提供 --before 和 --after');
   return options;
+}
+
+function applyInPlace(options) {
+  const target = fs.realpathSync(options['--file']);
+  const parse = (text) => JSON.parse(text.replace(/^\uFEFF/, ''));
+  const input = parse(fs.readFileSync(0, 'utf8'));
+  if (!plain(input) || !own(input, 'before') || !own(input, 'after')) {
+    throw new Error('标准输入必须提供 {before, after}：修改前完整对象与内存修订后的完整对象');
+  }
+  const current = fs.readFileSync(target, 'utf8');
+  if (!isDeepStrictEqual(parse(current), input.before)) throw new Error('storyboard 已变化，未写入；请重新读取当前文件后修订');
+  const result = reviewBoards(input.before, input.after);
+  const report = renderReview(result);
+  const code = result.violations.length || result.attention.some((item) => item.startsWith('[G06]')) ? 2 : 0;
+  if (options['--out']) {
+    const out = path.resolve(options['--out']);
+    const targetStat = fs.statSync(target);
+    const outStat = fs.existsSync(out) ? fs.statSync(out) : null;
+    if (out === target || (outStat && (fs.realpathSync(out) === target
+      || (outStat.dev === targetStat.dev && outStat.ino === targetStat.ino)))) throw new Error('报告路径不能覆盖 storyboard');
+    fs.writeFileSync(out, report, 'utf8');
+    process.stdout.write(`对比报告：${out}\n`);
+  } else process.stdout.write(report);
+  if (code) {
+    process.stderr.write('检查未通过或同步待核对，storyboard 未写入。\n');
+    return code;
+  }
+  if (fs.readFileSync(target, 'utf8') !== current) throw new Error('storyboard 在检查期间变化，未写入；请重新读取后修订');
+  if (!isDeepStrictEqual(input.before, input.after)) fs.writeFileSync(target, JSON.stringify(input.after, null, 2) + '\n', 'utf8');
+  process.stdout.write(`已原位更新：${target}\n`);
+  return 0;
 }
 
 export function main(argv = process.argv.slice(2)) {
   if (argv.length === 1 && ['--help', '-h'].includes(argv[0])) {
-    process.stdout.write('review --before 原稿.json --after 修订稿.json [--out motion-review.md]\n只读对比，返回码：0 保护性检查通过，2 保护性问题或提示词同步待核对，1 输入错误。\n');
+    process.stdout.write('apply --file storyboard.json [--out motion-review.md]\n标准输入：{before, after}，校验通过后更新原文件，不产生版本 JSON；--out 更新指定报告，否则打印报告。\nreview --before 原稿.json --after 修订稿.json [--out motion-review.md]\nreview 保留只读比较，报告拒绝覆盖。\n返回码：0 保护性检查通过，2 保护性问题或同步待核对（apply 不写入），1 输入错误。\n');
     return 0;
   }
   const options = parseArgs(argv);
+  if (argv[0] === 'apply') return applyInPlace(options);
   const beforePath = fs.realpathSync(options['--before']);
   const afterPath = fs.realpathSync(options['--after']);
   if (beforePath === afterPath) throw new Error('原稿和修订稿必须是两个独立文件');

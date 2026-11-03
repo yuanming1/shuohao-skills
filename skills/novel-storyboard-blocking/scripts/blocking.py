@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""独立的站位宫格导出器：读取现有分镜或交接包，不改写输入，不调用模型。"""
+"""彩色人偶调度宫格：导出参考提示词，或将明确的人偶与路径约定写回分镜。"""
 import argparse
 from decimal import Decimal, InvalidOperation
 import json
 import math
+import os
 from pathlib import Path
 import re
 from string import Template
 import sys
+import tempfile
 
+from dispatch import base_opening, check_characters, check_consistency, read_dispatch, with_dispatch_use
 from planning import make_planning, prompt_values
 
 
@@ -212,8 +215,9 @@ def render_prompt(package):
 
 
 def render_brief(package):
-    lines = [f"# {package['segment']} · 站位与分镜宫格", '',
+    lines = [f"# {package['segment']} · 彩色人偶调度宫格", '',
              '交付为完整出图提示词；没有生成图片，未验证空间、动作语义或实际视频节奏。', '',
+             '宫格主要用于人物调度；左右两侧均使用对应颜色的人偶，实际角色外貌由角色设定确定。', '',
              '## 开场空间安排', '', package['planning']['opening'], '', '## 逐镜对应', '']
     for panel, shot in zip(package['panels'], package['planning']['shots']):
         start, end = map(timecode, panel['time'])
@@ -225,7 +229,9 @@ def render_brief(package):
     lines.extend(['## 同步到视频生成', '',
                   '- 先在分镜源文件同步 blocking、逐镜机位与 cut.note；frame 写切点可见状态，shot 和 h3Prompt 写动作及终态。',
                   '- 关键帧出图直接消费 frame，不会自动读取本交接包；Seedance 消费 blocking、构图字段与 shot；H3 使用单独编写的 h3Prompt，必须同步修改。',
-                  '- 已有关键帧受到站位修改影响时需重新生成并复核。正式投产使用独立干净关键帧，本宫格不参与参考图编号。',
+                  '- 将人偶对应、逐镜路径和调度用途写回正式分镜的 blocking；Seedance 导出后位于【人物关系与构图逻辑】。',
+                  '- 宫格可作为单独的人物调度参考提交；实际附件绑定按生成协议确认，不能占用或改动既有关键帧编号。未附图时不得声称已参考图中路径。',
+                  '- 人偶色彩只标识角色；成片外貌和服装沿用角色设定，不保留人偶、箭头、标签或宫格边框。',
                   '- 左图只代表开场。后续走位使用带镜号的路径或状态小图；发现冲突先回到源文件修正，再重新导出。',
                   '- 字段齐备不代表内容一致；需对照剧本与实际图片复核人物位置、遮挡、接触关系及跨段衔接。', ''])
     return '\n'.join(lines)
@@ -259,6 +265,11 @@ def export(args):
     for index, sid in enumerate(selected):
         if segments is not None:
             package, missing = make_package(segments[index], args.frames, args.aspect or 'source')
+            if not missing:
+                try:
+                    check_consistency(data, segments[index], package['planning']['opening'])
+                except ValueError as exc:
+                    missing.append(str(exc))
         else:
             package = packages[index]
             if args.aspect:
@@ -282,7 +293,7 @@ def export(args):
             (directory / 'grid-prompt.txt').write_text(prompt, encoding='utf-8')
             (directory / 'grid-brief.md').write_text(render_brief(package), encoding='utf-8')
             results.append({'segment': sid, 'status': 'ready', 'notes': ['提示词就绪，尚未出图或验证空间与动作语义。']})
-    report = {'segments': results, 'limitations': ['不改写分镜、关键帧或视频提示词；需先按技能工作流同步上游。',
+    report = {'segments': results, 'limitations': ['export 不改写分镜；先将颜色与路径约定写入 blocking，或使用 sync-dispatch 写回，之后重新导出视频提示词。',
               '仅检查材料齐备和时间轴，不证明几何、轴线、图像或动作连续性。']}
     root.mkdir(parents=True, exist_ok=True)
     (root / 'index.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
@@ -292,6 +303,50 @@ def export(args):
             print('  ' + note)
     print(f'交付目录：{root}')
     return 2 if any(result['status'] == 'pending' for result in results) else 0
+
+
+def sync_dispatch(args):
+    """只更新 blocking 的调度约定；旧镜头、开场事实或路径正文有变化时拒绝套用旧包。"""
+    source = args.storyboard.resolve()
+    original = source.read_bytes()
+    board = json.loads(original.decode('utf-8-sig'))
+    package = load_json(args.plan)
+    missing = validate_package(package)
+    if missing:
+        print('调度材料待补：' + '；'.join(missing), file=sys.stderr)
+        return 2
+    segment = selected_segments(board, segment=package['segment'])[0]
+    current, _ = make_package(segment)
+    for old, new in zip(current['panels'], package['panels']):
+        if {key: value for key, value in old.items() if key != 'reference'} != {key: value for key, value in new.items() if key != 'reference'}:
+            raise ValueError('交接包的镜头、时间或画面与正式分镜不一致，请重新规划并导出')
+    if current['planning']['shots'] != package['planning']['shots']:
+        raise ValueError('交接包的机位、动作或承接与正式分镜不一致，不能只写回调度说明')
+    opening = package['planning']['opening']
+    if base_opening(segment.get('blocking', '')) != base_opening(opening):
+        raise ValueError('调度约定之前的开场空间事实不一致，不能覆盖原站位或 staging 内容')
+    bindings, _, _ = read_dispatch(opening)
+    # 源分镜有角色引用时，不能仅靠交接包没有角色字段而漏配人偶。
+    absent = check_characters(segment, bindings)
+    if absent:
+        raise ValueError('；'.join(absent))
+    check_consistency(board, segment, opening)
+    segment['blocking'] = with_dispatch_use(opening)
+    updated = (json.dumps(board, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=source.parent, prefix=source.name + '.', suffix='.tmp', delete=False) as stream:
+            temporary = Path(stream.name)
+            stream.write(updated)
+        if source.read_bytes() != original:
+            raise ValueError('分镜已被其他操作修改，请重新读取后再同步')
+        os.replace(temporary, source)
+    finally:
+        if temporary is not None and temporary.exists():
+            temporary.unlink()
+    print(f"{segment['id']}：已将人偶对应与路径参考写回 {source} 的 blocking。")
+    print('请从正式分镜重新导出宫格与视频提示词；实际调度图片仍需生成并按协议提交。')
+    return 0
 
 
 def main(argv=None):
@@ -306,9 +361,12 @@ def main(argv=None):
     command.add_argument('--ep', type=int)
     command.add_argument('--frames', type=Path)
     command.add_argument('--aspect', choices=ASPECTS)
+    sync = commands.add_parser('sync-dispatch', help='从交接包把明确的颜色与路径约定写回正式分镜 blocking')
+    sync.add_argument('--storyboard', type=Path, required=True)
+    sync.add_argument('--plan', type=Path, required=True)
     args = parser.parse_args(argv)
     try:
-        return export(args)
+        return sync_dispatch(args) if args.command == 'sync-dispatch' else export(args)
     except (ValueError, OSError, KeyError, TypeError, AttributeError) as exc:
         print(f'输入或导出错误：{exc}', file=sys.stderr)
         return 3
